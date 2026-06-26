@@ -1,0 +1,125 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum ConversationType {
+  private
+  group
+}
+
+enum MessageStatus {
+  sent
+  delivered
+  read
+}
+
+enum MemberRole {
+  admin
+  moderator
+  member
+}
+
+model Profile {
+  id          String   @id @default(uuid())
+  displayName String   @map("display_name")
+  avatarUrl   String?  @map("avatar_url")
+  language    String   @default("fr")
+  timezone    String   @default("UTC")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  sentMessages         Message[]
+  conversationMembers  ConversationMember[]
+  messageStatuses      MessageStatus_[]
+  pushTokens           PushToken[]
+
+  @@map("profiles")
+}
+
+model Conversation {
+  id        String           @id @default(uuid())
+  type      ConversationType @default(private)
+  name      String?
+  createdBy String           @map("created_by")
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+
+  members  ConversationMember[]
+  messages Message[]
+
+  @@map("conversations")
+}
+
+model ConversationMember {
+  conversationId String     @map("conversation_id")
+  userId         String     @map("user_id")
+  joinedAt       DateTime   @default(now()) @map("joined_at")
+  role           MemberRole @default(member)
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         Profile      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, userId])
+  @@map("conversation_members")
+}
+
+model Message {
+  id             String   @id @default(uuid())
+  conversationId String   @map("conversation_id")
+  senderId       String   @map("sender_id")
+  content        String
+  lang           String   @default("fr")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  conversation       Conversation         @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender             Profile              @relation(fields: [senderId], references: [id])
+  statuses           MessageStatus_[]
+  translationsCache  TranslationCache[]
+
+  @@index([conversationId, createdAt(sort: Desc)])
+  @@map("messages")
+}
+
+model MessageStatus_ {
+  messageId String        @map("message_id")
+  userId    String        @map("user_id")
+  status    MessageStatus @default(sent)
+  updatedAt DateTime      @updatedAt @map("updated_at")
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([messageId, userId])
+  @@map("message_statuses")
+}
+
+model TranslationCache {
+  messageId      String @map("message_id")
+  targetLang     String @map("target_lang")
+  translatedText String @map("translated_text")
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@id([messageId, targetLang])
+  @@map("translations_cache")
+}
+
+model PushToken {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  expoToken  String   @map("expo_token")
+  platform   String
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, platform])
+  @@map("push_tokens")
+}

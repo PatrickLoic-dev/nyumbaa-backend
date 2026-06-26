@@ -8,6 +8,18 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+enum PostVisibility {
+  public
+  followers
+  private
+}
+
+enum PostStatus {
+  published
+  under_review
+  removed
+}
+
 enum ConversationType {
   private
   group
@@ -38,8 +50,37 @@ model Profile {
   conversationMembers  ConversationMember[]
   messageStatuses      MessageStatus_[]
   pushTokens           PushToken[]
+  posts                Post[]
+  mentionedIn          PostMention[]
 
   @@map("profiles")
+}
+
+model Post {
+  id         String         @id @default(uuid())
+  authorId   String         @map("author_id")
+  content    String
+  visibility PostVisibility @default(public)
+  status     PostStatus     @default(published)
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
+
+  author   Profile       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  mentions PostMention[]
+
+  @@index([authorId, createdAt(sort: Desc)])
+  @@map("posts")
+}
+
+model PostMention {
+  postId            String @map("post_id")
+  mentionedUserId   String @map("mentioned_user_id")
+
+  post          Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  mentionedUser Profile @relation(fields: [mentionedUserId], references: [id], onDelete: Cascade)
+
+  @@id([postId, mentionedUserId])
+  @@map("post_mentions")
 }
 
 model Conversation {

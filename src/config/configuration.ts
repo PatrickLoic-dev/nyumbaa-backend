@@ -13,6 +13,8 @@ export const validationSchema = Joi.object({
   RESEND_API_KEY: Joi.string().required(),
   RESEND_FROM_EMAIL: Joi.string().email().default('noreply@nyumbaa.app'),
   DEEPL_API_KEY: Joi.string().required(),
+  REDIS_URL: Joi.string().default('redis://localhost:6379'),
+  PERSPECTIVE_API_KEY: Joi.string().optional(),
   CORS_ORIGIN: Joi.string().default('*'),
   THROTTLE_TTL: Joi.number().default(60),
   THROTTLE_LIMIT: Joi.number().default(100),
@@ -34,6 +36,12 @@ export const configuration = () => ({
   },
   deepl: {
     apiKey: process.env.DEEPL_API_KEY,
+  },
+  redis: {
+    url: process.env.REDIS_URL ?? 'redis://localhost:6379',
+  },
+  perspective: {
+    apiKey: process.env.PERSPECTIVE_API_KEY,
   },
   cors: {
     origin: process.env.CORS_ORIGIN,

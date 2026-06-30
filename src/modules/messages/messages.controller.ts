@@ -1,15 +1,13 @@
-import { Controller, Get, Post, Param, Body, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { MessagesService } from './messages.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { CursorPaginationDto } from './dto/cursor-pagination.dto';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { User } from '@supabase/supabase-js';
 
 @ApiTags('messages')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
 @Controller('conversations/:conversationId/messages')
 export class MessagesController {
   constructor(private readonly messagesService: MessagesService) {}

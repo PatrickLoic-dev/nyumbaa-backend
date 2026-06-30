@@ -9,7 +9,6 @@ export const validationSchema = Joi.object({
   SUPABASE_URL: Joi.string().uri().required(),
   SUPABASE_ANON_KEY: Joi.string().required(),
   SUPABASE_SERVICE_ROLE_KEY: Joi.string().required(),
-  SUPABASE_JWT_SECRET: Joi.string().required(),
   RESEND_API_KEY: Joi.string().required(),
   RESEND_FROM_EMAIL: Joi.string().email().default('noreply@nyumbaa.app'),
   DEEPL_API_KEY: Joi.string().required(),
@@ -26,7 +25,6 @@ export const configuration = () => ({
     url: process.env.SUPABASE_URL,
     anonKey: process.env.SUPABASE_ANON_KEY,
     serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
-    jwtSecret: process.env.SUPABASE_JWT_SECRET,
   },
   resend: {
     apiKey: process.env.RESEND_API_KEY,

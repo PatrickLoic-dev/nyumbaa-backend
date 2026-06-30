@@ -20,6 +20,12 @@ enum PostStatus {
   removed
 }
 
+enum PostImageStatus {
+  pending_review
+  approved
+  rejected
+}
+
 enum ConversationType {
   private
   group
@@ -67,9 +73,26 @@ model Post {
 
   author   Profile       @relation(fields: [authorId], references: [id], onDelete: Cascade)
   mentions PostMention[]
+  images   PostImage[]
 
   @@index([authorId, createdAt(sort: Desc)])
   @@map("posts")
+}
+
+model PostImage {
+  id        String          @id @default(uuid())
+  postId    String          @map("post_id")
+  s3Key     String          @map("s3_key")
+  cdnUrl    String          @map("cdn_url")
+  altText   String?         @map("alt_text") @db.VarChar(200)
+  order     Int
+  status    PostImageStatus @default(pending_review)
+  createdAt DateTime        @default(now()) @map("created_at")
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId, order])
+  @@map("post_images")
 }
 
 model PostMention {

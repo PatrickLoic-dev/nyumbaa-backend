@@ -20,6 +20,12 @@ enum PostStatus {
   removed
 }
 
+enum CommentStatus {
+  published
+  flagged
+  removed
+}
+
 enum ConversationType {
   private
   group
@@ -52,24 +58,43 @@ model Profile {
   pushTokens           PushToken[]
   posts                Post[]
   mentionedIn          PostMention[]
+  comments             Comment[]
 
   @@map("profiles")
 }
 
 model Post {
-  id         String         @id @default(uuid())
-  authorId   String         @map("author_id")
-  content    String
-  visibility PostVisibility @default(public)
-  status     PostStatus     @default(published)
-  createdAt  DateTime       @default(now()) @map("created_at")
-  updatedAt  DateTime       @updatedAt @map("updated_at")
+  id               String         @id @default(uuid())
+  authorId         String         @map("author_id")
+  content          String
+  visibility       PostVisibility @default(public)
+  status           PostStatus     @default(published)
+  commentsEnabled  Boolean        @default(true) @map("comments_enabled")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
 
   author   Profile       @relation(fields: [authorId], references: [id], onDelete: Cascade)
   mentions PostMention[]
+  comments Comment[]
 
   @@index([authorId, createdAt(sort: Desc)])
   @@map("posts")
+}
+
+model Comment {
+  id        String        @id @default(uuid())
+  postId    String        @map("post_id")
+  authorId  String        @map("author_id")
+  content   String        @db.VarChar(500)
+  status    CommentStatus @default(published)
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+
+  post   Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author Profile @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt(sort: Asc)])
+  @@map("comments")
 }
 
 model PostMention {

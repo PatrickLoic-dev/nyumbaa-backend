@@ -14,6 +14,7 @@ import { TranslationModule } from './modules/translation/translation.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { MailModule } from './modules/mail/mail.module';
 import { PostsModule } from './modules/posts/posts.module';
+import { CommentsModule } from './modules/comments/comments.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { PostsModule } from './modules/posts/posts.module';
     NotificationsModule,
     MailModule,
     PostsModule,
+    CommentsModule,
   ],
 })
 export class AppModule {}

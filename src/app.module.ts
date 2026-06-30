@@ -13,6 +13,7 @@ import { RealtimeModule } from './modules/realtime/realtime.module';
 import { TranslationModule } from './modules/translation/translation.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { MailModule } from './modules/mail/mail.module';
+import { PostsModule } from './modules/posts/posts.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { MailModule } from './modules/mail/mail.module';
     TranslationModule,
     NotificationsModule,
     MailModule,
+    PostsModule,
   ],
 })
 export class AppModule {}

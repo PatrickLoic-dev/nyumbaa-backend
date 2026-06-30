@@ -1,6 +1,5 @@
 import { Module, OnModuleInit } from '@nestjs/common';
 import { BullModule, InjectQueue } from '@nestjs/bullmq';
-import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Queue } from 'bullmq';
 import { LikesController } from './likes.controller';
 import { LikesService } from './likes.service';
@@ -10,13 +9,6 @@ import { LIKES_NOTIFY_QUEUE, LIKES_SYNC_QUEUE, LIKES_SYNC_CRON } from './likes.c
 
 @Module({
   imports: [
-    BullModule.forRootAsync({
-      imports: [ConfigModule],
-      useFactory: (config: ConfigService) => ({
-        connection: { url: config.get<string>('redis.url') },
-      }),
-      inject: [ConfigService],
-    }),
     BullModule.registerQueue(
       { name: LIKES_NOTIFY_QUEUE },
       { name: LIKES_SYNC_QUEUE },

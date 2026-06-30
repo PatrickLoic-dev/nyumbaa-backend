@@ -9,7 +9,7 @@ export interface LikesNotifyJobData {
   likesCount: number;
 }
 
-@Processor(LIKES_NOTIFY_QUEUE)
+@Processor(LIKES_NOTIFY_QUEUE, { autorun: false })
 export class LikesNotifyProcessor extends WorkerHost {
   private readonly logger = new Logger(LikesNotifyProcessor.name);
 

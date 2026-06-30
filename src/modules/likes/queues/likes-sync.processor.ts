@@ -3,9 +3,9 @@ import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { RedisService } from '../../../common/redis/redis.service';
-import { LIKES_SYNC_QUEUE, LIKES_REDIS_KEY } from '../likes.constants';
+import { LIKES_SYNC_QUEUE } from '../likes.constants';
 
-@Processor(LIKES_SYNC_QUEUE)
+@Processor(LIKES_SYNC_QUEUE, { autorun: false })
 export class LikesSyncProcessor extends WorkerHost {
   private readonly logger = new Logger(LikesSyncProcessor.name);
 
@@ -28,10 +28,9 @@ export class LikesSyncProcessor extends WorkerHost {
         const raw = await this.redis.get(key);
         if (raw === null) return;
 
-        const count = parseInt(raw, 10);
         await this.prisma.post.updateMany({
           where: { id: postId },
-          data: { likesCount: count },
+          data: { likesCount: parseInt(raw, 10) },
         });
       }),
     );

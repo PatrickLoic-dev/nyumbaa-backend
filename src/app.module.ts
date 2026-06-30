@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { BullModule } from '@nestjs/bullmq';
+import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { configuration, validationSchema } from './config/configuration';
@@ -44,20 +43,6 @@ import { RedisModule } from './common/redis/redis.module';
             ? { target: 'pino-pretty', options: { colorize: true } }
             : undefined,
       },
-    }),
-    BullModule.forRootAsync({
-      imports: [ConfigModule],
-      useFactory: (config: ConfigService) => ({
-        connection: {
-          url: config.get<string>('redis.url') ?? 'redis://127.0.0.1:6379',
-          lazyConnect: true,
-          maxRetriesPerRequest: null,
-          enableOfflineQueue: false,
-          retryStrategy: (times: number) =>
-            times > 10 ? null : Math.min(times * 300, 5000),
-        },
-      }),
-      inject: [ConfigService],
     }),
     PrismaModule,
     RedisModule,

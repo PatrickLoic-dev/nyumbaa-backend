@@ -3,29 +3,47 @@ import {
   Logger,
   ForbiddenException,
   NotFoundException,
+  OnModuleInit,
 } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
+import { Queue } from 'bullmq';
 import { PostStatus, PostVisibility } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { POST_FANOUT_QUEUE, PERSPECTIVE_TOXICITY_THRESHOLD } from './posts.constants';
-import type { FanoutJobData } from './queues/fanout.processor';
+
+export interface FanoutJobData {
+  postId: string;
+  authorId: string;
+  visibility: string;
+}
 
 @Injectable()
-export class PostsService {
+export class PostsService implements OnModuleInit {
   private readonly logger = new Logger(PostsService.name);
+  private fanoutQueue: Queue | null = null;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
-    @InjectQueue(POST_FANOUT_QUEUE) private readonly fanoutQueue: Queue,
   ) {}
 
+  onModuleInit() {
+    const redisUrl = this.config.get<string>('redis.url') ?? 'redis://127.0.0.1:6379';
+    try {
+      this.fanoutQueue = new Queue(POST_FANOUT_QUEUE, {
+        connection: { url: redisUrl, lazyConnect: true, maxRetriesPerRequest: null, enableOfflineQueue: false },
+      });
+      this.fanoutQueue.on('error', (err: Error) =>
+        this.logger.warn(`Fanout queue error (Redis unavailable): ${err.message}`),
+      );
+    } catch (err) {
+      this.logger.warn(`Fanout queue unavailable (Redis down): ${(err as Error).message}`);
+    }
+  }
+
   async create(authorId: string, dto: CreatePostDto) {
-    // Resolve @mention handles from content + explicit UUID list
     const mentionedIds = await this.resolveMentions(dto.content, dto.mentions ?? []);
 
     const post = await this.prisma.post.create({
@@ -44,17 +62,9 @@ export class PostsService {
       },
     });
 
-    // Enqueue fanout — non-blocking
-    await this.fanoutQueue.add(
-      'fanout',
-      { postId: post.id, authorId, visibility: dto.visibility } satisfies FanoutJobData,
-      { attempts: 3, backoff: { type: 'exponential', delay: 2000 } },
-    );
-
-    // Async moderation — fire-and-forget, never blocks HTTP response
-    this.moderateAsync(post.id, dto.content, authorId).catch((err) =>
-      this.logger.error(`Moderation error for post ${post.id}: ${err.message}`),
-    );
+    // Fire-and-forget — never blocks HTTP 201
+    this.enqueueFanout(post.id, authorId, dto.visibility).catch(() => {});
+    this.moderateAsync(post.id, dto.content, authorId).catch(() => {});
 
     return post;
   }
@@ -74,52 +84,41 @@ export class PostsService {
   }
 
   // ---------------------------------------------------------------------------
-  // Private helpers
-  // ---------------------------------------------------------------------------
 
-  /** Merges explicit UUID mentions with @handle mentions resolved via displayName lookup. */
+  private async enqueueFanout(postId: string, authorId: string, visibility: string) {
+    if (!this.fanoutQueue) return;
+    try {
+      await this.fanoutQueue.add(
+        'fanout',
+        { postId, authorId, visibility } satisfies FanoutJobData,
+        { attempts: 3, backoff: { type: 'exponential', delay: 2000 } },
+      );
+    } catch (err) {
+      this.logger.warn(`Fanout enqueue failed for post ${postId}: ${(err as Error).message}`);
+    }
+  }
+
   private async resolveMentions(content: string, explicitIds: string[]): Promise<string[]> {
     const handleMatches = [...content.matchAll(/@([a-zA-Z0-9_]{2,30})/g)].map((m) => m[1]);
-
-    const resolved =
-      handleMatches.length > 0
-        ? await this.prisma.profile.findMany({
-            where: { displayName: { in: handleMatches } },
-            select: { id: true },
-          })
-        : [];
-
+    const resolved = handleMatches.length > 0
+      ? await this.prisma.profile.findMany({ where: { displayName: { in: handleMatches } }, select: { id: true } })
+      : [];
     const all = new Set([...explicitIds, ...resolved.map((p) => p.id)]);
     return [...all].slice(0, 10);
   }
 
-  /** Calls Perspective API and flags the post under_review if toxicity ≥ threshold. */
-  private async moderateAsync(postId: string, content: string, authorId: string): Promise<void> {
+  private async moderateAsync(postId: string, content: string, _authorId: string) {
     const apiKey = this.config.get<string>('perspective.apiKey');
-    if (!apiKey) return; // Skip in dev when key is absent
-
+    if (!apiKey) return;
     const response = await axios.post(
       `https://commentanalyzer.googleapis.com/v1alpha1/comments:analyze?key=${apiKey}`,
-      {
-        comment: { text: content },
-        languages: ['fr', 'en'],
-        requestedAttributes: { TOXICITY: {} },
-      },
+      { comment: { text: content }, languages: ['fr', 'en'], requestedAttributes: { TOXICITY: {} } },
       { timeout: 5000 },
     );
-
-    const score: number =
-      response.data?.attributeScores?.TOXICITY?.summaryScore?.value ?? 0;
-
+    const score: number = response.data?.attributeScores?.TOXICITY?.summaryScore?.value ?? 0;
     if (score >= PERSPECTIVE_TOXICITY_THRESHOLD) {
-      await this.prisma.post.update({
-        where: { id: postId },
-        data: { status: PostStatus.under_review },
-      });
-      this.logger.warn(
-        `Post ${postId} flagged under_review (toxicity score: ${score.toFixed(2)})`,
-      );
-      // Notification to author is handled by NotificationsModule (future hook)
+      await this.prisma.post.update({ where: { id: postId }, data: { status: PostStatus.under_review } });
+      this.logger.warn(`Post ${postId} flagged under_review (score: ${score.toFixed(2)})`);
     }
   }
 }

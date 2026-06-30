@@ -52,6 +52,7 @@ model Profile {
   pushTokens           PushToken[]
   posts                Post[]
   mentionedIn          PostMention[]
+  likes                Like[]
 
   @@map("profiles")
 }
@@ -60,16 +61,30 @@ model Post {
   id         String         @id @default(uuid())
   authorId   String         @map("author_id")
   content    String
-  visibility PostVisibility @default(public)
-  status     PostStatus     @default(published)
-  createdAt  DateTime       @default(now()) @map("created_at")
-  updatedAt  DateTime       @updatedAt @map("updated_at")
+  visibility      PostVisibility @default(public)
+  status          PostStatus     @default(published)
+  likesCount      Int            @default(0) @map("likes_count")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
 
   author   Profile       @relation(fields: [authorId], references: [id], onDelete: Cascade)
   mentions PostMention[]
+  likes    Like[]
 
   @@index([authorId, createdAt(sort: Desc)])
   @@map("posts")
+}
+
+model Like {
+  postId    String   @map("post_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  post Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId])
+  @@map("likes")
 }
 
 model PostMention {

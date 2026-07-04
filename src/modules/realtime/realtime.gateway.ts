@@ -11,7 +11,9 @@ import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
 
 @WebSocketGateway({ cors: { origin: '*' }, namespace: '/realtime' })
-export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class RealtimeGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   server!: Server;
 
@@ -26,13 +28,19 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
   }
 
   @SubscribeMessage('join-room')
-  handleJoinRoom(@ConnectedSocket() client: Socket, @MessageBody() conversationId: string) {
+  handleJoinRoom(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() conversationId: string,
+  ) {
     client.join(conversationId);
     return { event: 'joined', data: conversationId };
   }
 
   @SubscribeMessage('leave-room')
-  handleLeaveRoom(@ConnectedSocket() client: Socket, @MessageBody() conversationId: string) {
+  handleLeaveRoom(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() conversationId: string,
+  ) {
     client.leave(conversationId);
   }
 
@@ -47,12 +55,13 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
   @SubscribeMessage('read-receipt')
   handleReadReceipt(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { conversationId: string; messageId: string; userId: string },
+    @MessageBody()
+    data: { conversationId: string; messageId: string; userId: string },
   ) {
     client.to(data.conversationId).emit('read-receipt', data);
   }
 
   emitMessage(conversationId: string, message: object) {
-    this.server.to(conversationId).emit('new-message', message);
+    this.server.to(conversationId).emit('message:new', message);
   }
 }

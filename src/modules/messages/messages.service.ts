@@ -6,6 +6,7 @@ import {
 import { ConversationType } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { ConversationsService } from '../conversations/conversations.service';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { CursorPaginationDto } from './dto/cursor-pagination.dto';
 
@@ -16,6 +17,7 @@ export class MessagesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly conversations: ConversationsService,
+    private readonly realtime: RealtimeGateway,
   ) {}
 
   async findAll(
@@ -65,7 +67,7 @@ export class MessagesService {
       },
     });
 
-    return {
+    const payload = {
       id: message.id,
       conversationId: message.conversationId,
       senderId: message.senderId,
@@ -73,6 +75,10 @@ export class MessagesService {
       status: 'sent',
       createdAt: message.createdAt,
     };
+
+    this.realtime.emitMessage(conversationId, payload);
+
+    return payload;
   }
 
   private async findOrCreatePrivateConversation(

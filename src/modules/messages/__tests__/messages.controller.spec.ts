@@ -11,6 +11,7 @@ import { PrismaModule } from '../../../common/prisma/prisma.module';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { SupabaseModule } from '../../../common/supabase/supabase.module';
 import { SupabaseService } from '../../../common/supabase/supabase.service';
+import { RealtimeGateway } from '../../realtime/realtime.gateway';
 
 const SENDER_ID = 'sender-uuid';
 const RECIPIENT_ID = 'recipient-uuid';
@@ -36,6 +37,10 @@ const mockSupabase = {
   admin: { auth: { admin: { getUserById: jest.fn() } } },
 };
 
+const mockRealtimeGateway = {
+  emitMessage: jest.fn(),
+};
+
 describe('MessagesController (POST /conversations/:id/messages)', () => {
   let app: INestApplication;
 
@@ -48,6 +53,8 @@ describe('MessagesController (POST /conversations/:id/messages)', () => {
       .useValue(mockPrisma)
       .overrideProvider(SupabaseService)
       .useValue(mockSupabase)
+      .overrideProvider(RealtimeGateway)
+      .useValue(mockRealtimeGateway)
       .compile();
 
     app = moduleFixture.createNestApplication();
@@ -96,6 +103,10 @@ describe('MessagesController (POST /conversations/:id/messages)', () => {
       content: 'Hello there',
       status: 'sent',
     });
+    expect(mockRealtimeGateway.emitMessage).toHaveBeenCalledWith(
+      CONVERSATION_ID,
+      expect.objectContaining({ id: 'message-uuid', status: 'sent' }),
+    );
   });
 
   it('returns 400 for empty content', async () => {

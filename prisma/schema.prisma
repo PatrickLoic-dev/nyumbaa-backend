@@ -38,20 +38,21 @@ enum MemberRole {
 }
 
 model Profile {
-  id          String   @id @default(uuid())
-  displayName String   @map("display_name")
-  avatarUrl   String?  @map("avatar_url")
-  language    String   @default("fr")
-  timezone    String   @default("UTC")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id                        String   @id @default(uuid())
+  displayName               String   @map("display_name")
+  avatarUrl                 String?  @map("avatar_url")
+  language                  String   @default("fr")
+  timezone                  String   @default("UTC")
+  emailNotificationsEnabled Boolean  @default(true) @map("email_notifications_enabled")
+  createdAt                 DateTime @default(now()) @map("created_at")
+  updatedAt                 DateTime @updatedAt @map("updated_at")
 
-  sentMessages         Message[]
-  conversationMembers  ConversationMember[]
-  messageStatuses      MessageStatus_[]
-  pushTokens           PushToken[]
-  posts                Post[]
-  mentionedIn          PostMention[]
+  sentMessages        Message[]
+  conversationMembers ConversationMember[]
+  messageStatuses     MessageStatus_[]
+  pushTokens          PushToken[]
+  posts               Post[]
+  mentionedIn         PostMention[]
 
   @@map("profiles")
 }
@@ -73,8 +74,8 @@ model Post {
 }
 
 model PostMention {
-  postId            String @map("post_id")
-  mentionedUserId   String @map("mentioned_user_id")
+  postId          String @map("post_id")
+  mentionedUserId String @map("mentioned_user_id")
 
   post          Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
   mentionedUser Profile @relation(fields: [mentionedUserId], references: [id], onDelete: Cascade)
@@ -119,10 +120,10 @@ model Message {
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  conversation       Conversation         @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  sender             Profile              @relation(fields: [senderId], references: [id])
-  statuses           MessageStatus_[]
-  translationsCache  TranslationCache[]
+  conversation      Conversation       @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender            Profile            @relation(fields: [senderId], references: [id])
+  statuses          MessageStatus_[]
+  translationsCache TranslationCache[]
 
   @@index([conversationId, createdAt(sort: Desc)])
   @@map("messages")
@@ -153,11 +154,11 @@ model TranslationCache {
 }
 
 model PushToken {
-  id         String   @id @default(uuid())
-  userId     String   @map("user_id")
-  expoToken  String   @map("expo_token")
-  platform   String
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  expoToken String   @map("expo_token")
+  platform  String
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
 

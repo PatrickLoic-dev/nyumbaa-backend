@@ -5,6 +5,7 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
+import { ConfigModule } from '@nestjs/config';
 import request from 'supertest';
 import { MessagesModule } from '../messages.module';
 import { PrismaModule } from '../../../common/prisma/prisma.module';
@@ -12,6 +13,7 @@ import { PrismaService } from '../../../common/prisma/prisma.service';
 import { SupabaseModule } from '../../../common/supabase/supabase.module';
 import { SupabaseService } from '../../../common/supabase/supabase.service';
 import { RealtimeGateway } from '../../realtime/realtime.gateway';
+import { NotificationsService } from '../../notifications/notifications.service';
 
 const SENDER_ID = 'sender-uuid';
 const RECIPIENT_ID = 'recipient-uuid';
@@ -41,12 +43,24 @@ const mockRealtimeGateway = {
   emitMessage: jest.fn(),
 };
 
+const mockNotificationsService = {
+  sendPushNotification: jest.fn().mockResolvedValue(undefined),
+};
+
 describe('MessagesController (POST /conversations/:id/messages)', () => {
   let app: INestApplication;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [PrismaModule, SupabaseModule, MessagesModule],
+      imports: [
+        ConfigModule.forRoot({
+          isGlobal: true,
+          load: [() => ({ resend: { apiKey: 're_test_key' } })],
+        }),
+        PrismaModule,
+        SupabaseModule,
+        MessagesModule,
+      ],
       providers: [{ provide: APP_GUARD, useClass: FakeJwtAuthGuard }],
     })
       .overrideProvider(PrismaService)
@@ -55,6 +69,8 @@ describe('MessagesController (POST /conversations/:id/messages)', () => {
       .useValue(mockSupabase)
       .overrideProvider(RealtimeGateway)
       .useValue(mockRealtimeGateway)
+      .overrideProvider(NotificationsService)
+      .useValue(mockNotificationsService)
       .compile();
 
     app = moduleFixture.createNestApplication();
@@ -87,6 +103,7 @@ describe('MessagesController (POST /conversations/:id/messages)', () => {
       senderId: SENDER_ID,
       content: 'Hello there',
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      sender: { id: SENDER_ID, displayName: 'Sender' },
     });
   });
 

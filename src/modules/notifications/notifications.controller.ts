@@ -12,7 +12,9 @@ export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 
   @Post('register-token')
-  @ApiOperation({ summary: 'Register an Expo push token for the current device' })
+  @ApiOperation({
+    summary: 'Register an Expo push token for the current device',
+  })
   registerToken(@CurrentUser() user: User, @Body() dto: RegisterTokenDto) {
     return this.notificationsService.registerToken(user.id, dto);
   }

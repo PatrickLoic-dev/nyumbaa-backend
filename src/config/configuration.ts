@@ -1,7 +1,9 @@
 import * as Joi from 'joi';
 
 export const validationSchema = Joi.object({
-  NODE_ENV: Joi.string().valid('development', 'staging', 'production').default('development'),
+  NODE_ENV: Joi.string()
+    .valid('development', 'staging', 'production')
+    .default('development'),
   PORT: Joi.number().default(3000),
   API_PREFIX: Joi.string().default('api/v1'),
   DATABASE_URL: Joi.string().required(),
@@ -11,6 +13,7 @@ export const validationSchema = Joi.object({
   SUPABASE_SERVICE_ROLE_KEY: Joi.string().required(),
   RESEND_API_KEY: Joi.string().required(),
   RESEND_FROM_EMAIL: Joi.string().email().default('noreply@nyumbaa.app'),
+  EXPO_ACCESS_TOKEN: Joi.string().optional(),
   DEEPL_API_KEY: Joi.string().required(),
   REDIS_URL: Joi.string().default('redis://localhost:6379'),
   PERSPECTIVE_API_KEY: Joi.string().optional(),
@@ -31,6 +34,9 @@ export const configuration = () => ({
   resend: {
     apiKey: process.env.RESEND_API_KEY,
     fromEmail: process.env.RESEND_FROM_EMAIL,
+  },
+  expo: {
+    accessToken: process.env.EXPO_ACCESS_TOKEN,
   },
   deepl: {
     apiKey: process.env.DEEPL_API_KEY,

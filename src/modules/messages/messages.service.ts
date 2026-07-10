@@ -1,23 +1,29 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { ConversationType } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { ConversationsService } from '../conversations/conversations.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { CursorPaginationDto } from './dto/cursor-pagination.dto';
 
 const MAX_CONTENT_LENGTH = 2000;
+const PREVIEW_LENGTH = 140;
 
 @Injectable()
 export class MessagesService {
+  private readonly logger = new Logger(MessagesService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly conversations: ConversationsService,
     private readonly realtime: RealtimeGateway,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async findAll(
@@ -65,6 +71,7 @@ export class MessagesService {
         content: dto.content,
         lang: dto.lang ?? 'fr',
       },
+      include: { sender: true },
     });
 
     const payload = {
@@ -77,6 +84,18 @@ export class MessagesService {
     };
 
     this.realtime.emitMessage(conversationId, payload);
+
+    this.notifications
+      .sendPushNotification(recipientId, {
+        title: message.sender.displayName,
+        body: message.content.slice(0, PREVIEW_LENGTH),
+        data: { conversationId, messageId: message.id },
+      })
+      .catch((error) =>
+        this.logger.error(
+          `Failed to notify recipient ${recipientId}: ${error.message}`,
+        ),
+      );
 
     return payload;
   }

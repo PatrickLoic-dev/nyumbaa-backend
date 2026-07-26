@@ -10,7 +10,8 @@ export class MailService {
 
   constructor(private readonly config: ConfigService) {
     this.resend = new Resend(this.config.get<string>('resend.apiKey'));
-    this.from = this.config.get<string>('resend.fromEmail') ?? 'noreply@nyumbaa.app';
+    this.from =
+      this.config.get<string>('resend.fromEmail') ?? 'noreply@nyumbaa.app';
   }
 
   async sendWelcome(to: string, displayName: string, lang: string = 'fr') {
@@ -34,6 +35,20 @@ export class MailService {
       to,
       subject: "Réinitialisation de votre mot de passe Nyumba'a",
       html: `<p>Cliquez ici pour réinitialiser votre mot de passe : <a href="${resetLink}">${resetLink}</a></p><p>Ce lien expire dans 1 heure.</p>`,
+    });
+  }
+
+  /** Fallback sent when a push notification couldn't be delivered. */
+  async sendMessageNotification(
+    to: string,
+    senderName: string,
+    preview: string,
+  ) {
+    await this.resend.emails.send({
+      from: this.from,
+      to,
+      subject: `Nouveau message de ${senderName} sur Nyumba'a`,
+      html: `<p>${senderName} vous a envoyé un message :</p><p>"${preview}"</p><p>Connectez-vous à Nyumba'a pour répondre.</p>`,
     });
   }
 }

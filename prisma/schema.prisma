@@ -59,28 +59,7 @@ enum MemberRole {
   member
 }
 
-<<<<<<< HEAD
 // ─── Models ─────────────────────────────────────────────────────────────────
-=======
-enum AppLanguage {
-  fr
-  en
-  sw
-  yo
-  ha
-}
-
-model Profile {
-  id              String      @id @default(uuid())
-  displayName     String      @map("display_name")
-  avatarUrl       String?     @map("avatar_url")
-  language        AppLanguage @default(fr)
-  timezone        String      @default("UTC")
-  phoneNumber     String?     @unique @map("phone_number")
-  phoneVerified   Boolean     @default(false) @map("phone_verified")
-  createdAt       DateTime    @default(now()) @map("created_at")
-  updatedAt       DateTime    @updatedAt @map("updated_at")
->>>>>>> feature/phone-language-security
 
 model Profile {
   id            String      @id @default(uuid())

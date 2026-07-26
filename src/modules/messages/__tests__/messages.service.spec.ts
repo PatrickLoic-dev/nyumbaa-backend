@@ -8,6 +8,7 @@ import { MessagesService } from '../messages.service';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { ConversationsService } from '../../conversations/conversations.service';
 import { RealtimeGateway } from '../../realtime/realtime.gateway';
+import { NotificationsService } from '../../notifications/notifications.service';
 
 const SENDER_ID = 'sender-uuid';
 const RECIPIENT_ID = 'recipient-uuid';
@@ -22,6 +23,7 @@ const mockMessage = {
   lang: 'fr',
   createdAt: new Date(),
   updatedAt: new Date(),
+  sender: { id: SENDER_ID, displayName: 'Alice' },
 };
 
 const mockPrisma = {
@@ -43,6 +45,10 @@ const mockRealtimeGateway = {
   emitMessage: jest.fn(),
 };
 
+const mockNotificationsService = {
+  sendPushNotification: jest.fn().mockResolvedValue(undefined),
+};
+
 describe('MessagesService', () => {
   let service: MessagesService;
 
@@ -53,6 +59,7 @@ describe('MessagesService', () => {
         { provide: PrismaService, useValue: mockPrisma },
         { provide: ConversationsService, useValue: mockConversationsService },
         { provide: RealtimeGateway, useValue: mockRealtimeGateway },
+        { provide: NotificationsService, useValue: mockNotificationsService },
       ],
     }).compile();
 
@@ -112,6 +119,13 @@ describe('MessagesService', () => {
         CONVERSATION_ID,
         result,
       );
+      expect(
+        mockNotificationsService.sendPushNotification,
+      ).toHaveBeenCalledWith(RECIPIENT_ID, {
+        title: mockMessage.sender.displayName,
+        body: mockMessage.content,
+        data: { conversationId: CONVERSATION_ID, messageId: MESSAGE_ID },
+      });
     });
 
     it('reuses an existing private conversation instead of creating a new one', async () => {

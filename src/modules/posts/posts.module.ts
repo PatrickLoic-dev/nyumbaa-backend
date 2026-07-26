@@ -5,6 +5,8 @@ import { PostsController } from './posts.controller';
 import { PostsService } from './posts.service';
 import { FanoutProcessor } from './queues/fanout.processor';
 import { POST_FANOUT_QUEUE } from './posts.constants';
+import { UploadModule } from '../../common/upload/upload.module';
+import { RekognitionModule } from '../../common/rekognition/rekognition.module';
 
 @Module({
   imports: [
@@ -16,6 +18,8 @@ import { POST_FANOUT_QUEUE } from './posts.constants';
       inject: [ConfigService],
     }),
     BullModule.registerQueue({ name: POST_FANOUT_QUEUE }),
+    UploadModule,
+    RekognitionModule,
   ],
   controllers: [PostsController],
   providers: [PostsService, FanoutProcessor],

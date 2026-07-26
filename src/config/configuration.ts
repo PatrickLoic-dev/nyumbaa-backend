@@ -14,6 +14,10 @@ export const validationSchema = Joi.object({
   DEEPL_API_KEY: Joi.string().required(),
   REDIS_URL: Joi.string().default('redis://localhost:6379'),
   PERSPECTIVE_API_KEY: Joi.string().optional(),
+  SUPABASE_STORAGE_BUCKET: Joi.string().default('post-images'),
+  AWS_REGION: Joi.string().default('eu-west-1'),
+  AWS_ACCESS_KEY_ID: Joi.string().optional(),
+  AWS_SECRET_ACCESS_KEY: Joi.string().optional(),
   CORS_ORIGIN: Joi.string().default('*'),
   THROTTLE_TTL: Joi.number().default(60),
   THROTTLE_LIMIT: Joi.number().default(100),
@@ -40,6 +44,14 @@ export const configuration = () => ({
   },
   perspective: {
     apiKey: process.env.PERSPECTIVE_API_KEY,
+  },
+  storage: {
+    bucket: process.env.SUPABASE_STORAGE_BUCKET ?? 'post-images',
+  },
+  aws: {
+    region: process.env.AWS_REGION ?? 'eu-west-1',
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
   },
   cors: {
     origin: process.env.CORS_ORIGIN,

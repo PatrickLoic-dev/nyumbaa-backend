@@ -14,6 +14,8 @@ import { TranslationModule } from './modules/translation/translation.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { MailModule } from './modules/mail/mail.module';
 import { PostsModule } from './modules/posts/posts.module';
+import { LikesModule } from './modules/likes/likes.module';
+import { RedisModule } from './common/redis/redis.module';
 
 @Module({
   imports: [
@@ -43,6 +45,7 @@ import { PostsModule } from './modules/posts/posts.module';
       },
     }),
     PrismaModule,
+    RedisModule,
     SupabaseModule,
     AuthModule,
     UsersModule,
@@ -53,6 +56,7 @@ import { PostsModule } from './modules/posts/posts.module';
     NotificationsModule,
     MailModule,
     PostsModule,
+    LikesModule,
   ],
 })
 export class AppModule {}

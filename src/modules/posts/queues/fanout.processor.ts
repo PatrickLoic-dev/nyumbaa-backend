@@ -9,13 +9,13 @@ export interface FanoutJobData {
   visibility: string;
 }
 
-@Processor(POST_FANOUT_QUEUE)
+@Processor(POST_FANOUT_QUEUE, { autorun: false })
 export class FanoutProcessor extends WorkerHost {
   private readonly logger = new Logger(FanoutProcessor.name);
 
   async process(job: Job<FanoutJobData>): Promise<void> {
     const { postId, authorId, visibility } = job.data;
     this.logger.log(`Processing fanout for post ${postId} (author: ${authorId}, visibility: ${visibility})`);
-    // Timeline distribution logic goes here in the feed module (Phase 2)
+    // Timeline distribution — Phase 2 Feed module
   }
 }

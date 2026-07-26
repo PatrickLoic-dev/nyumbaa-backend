@@ -4,6 +4,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { configuration, validationSchema } from './config/configuration';
 import { PrismaModule } from './common/prisma/prisma.module';
+import { RedisModule } from './common/redis/redis.module';
 import { SupabaseModule } from './common/supabase/supabase.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
@@ -43,6 +44,7 @@ import { PostsModule } from './modules/posts/posts.module';
       },
     }),
     PrismaModule,
+    RedisModule,
     SupabaseModule,
     AuthModule,
     UsersModule,

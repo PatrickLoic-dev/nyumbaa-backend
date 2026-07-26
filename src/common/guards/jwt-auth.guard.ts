@@ -6,18 +6,19 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
+import { createHash } from 'crypto';
 import { SupabaseService } from '../supabase/supabase.service';
+import { RedisService } from '../redis/redis.service';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { User } from '@supabase/supabase-js';
 
-/** In-memory token → user cache to avoid hitting Supabase on every request. TTL: 5 min. */
-const TOKEN_CACHE = new Map<string, { user: User; expiresAt: number }>();
-const CACHE_TTL_MS = 5 * 60 * 1000;
+const CACHE_TTL_SECONDS = 5 * 60;
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
   constructor(
     private readonly supabase: SupabaseService,
+    private readonly redis: RedisService,
     private readonly reflector: Reflector,
   ) {}
 
@@ -41,9 +42,16 @@ export class JwtAuthGuard implements CanActivate {
   }
 
   private async resolveUser(token: string): Promise<User> {
-    const cached = TOKEN_CACHE.get(token);
-    if (cached && cached.expiresAt > Date.now()) {
-      return cached.user;
+    // Hash token before using as cache key — never store raw JWTs in Redis
+    const cacheKey = `jwt:user:${createHash('sha256').update(token).digest('hex')}`;
+
+    const cached = await this.redis.get(cacheKey);
+    if (cached) {
+      try {
+        return JSON.parse(cached) as User;
+      } catch {
+        // Corrupted cache entry — fall through to Supabase
+      }
     }
 
     const { data, error } = await this.supabase.admin.auth.getUser(token);
@@ -52,7 +60,9 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException('Invalid or expired token');
     }
 
-    TOKEN_CACHE.set(token, { user: data.user, expiresAt: Date.now() + CACHE_TTL_MS });
+    // Redis TTL handles expiry automatically — no manual cleanup needed
+    await this.redis.setex(cacheKey, CACHE_TTL_SECONDS, JSON.stringify(data.user));
+
     return data.user;
   }
 

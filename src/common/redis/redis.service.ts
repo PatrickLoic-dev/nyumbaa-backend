@@ -17,7 +17,7 @@ export class RedisService implements OnModuleDestroy {
 
     this.client.on('error', (err) => {
       if (this.connected) {
-        this.logger.error(`Redis error: ${err.message}`);
+        this.logger.warn(`Redis error: ${err.message}`);
         this.connected = false;
       }
     });
@@ -27,7 +27,7 @@ export class RedisService implements OnModuleDestroy {
     });
 
     this.client.connect().catch(() => {
-      // Graceful degradation — SQL fallback handles the miss
+      // Graceful degradation — SQL fallback handles misses
     });
   }
 
@@ -74,6 +74,20 @@ export class RedisService implements OnModuleDestroy {
     } catch {
       // Redis unavailable — SQL is source of truth
     }
+  }
+
+  /** SETEX key ttlSeconds value — used for JWT cache. */
+  async setex(key: string, ttlSeconds: number, value: string): Promise<void> {
+    try {
+      await this.client.setex(String(key), ttlSeconds, value);
+    } catch {}
+  }
+
+  /** DEL key. */
+  async del(key: string): Promise<void> {
+    try {
+      await this.client.del(key);
+    } catch {}
   }
 
   /** Return all keys matching pattern (for sync job). */

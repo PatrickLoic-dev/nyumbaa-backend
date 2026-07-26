@@ -32,11 +32,12 @@ export class AuthService {
       if (error.message.toLowerCase().includes('already registered')) {
         throw new ConflictException('Email already in use');
       }
-      throw new InternalServerErrorException(error.message);
+      // Never forward raw provider error messages to the client
+      throw new InternalServerErrorException('Registration failed');
     }
 
     if (!data.user || !data.session) {
-      throw new InternalServerErrorException('Registration failed — no session returned');
+      throw new InternalServerErrorException('Registration failed');
     }
 
     // Upsert profile so it exists even if the Supabase trigger hasn't run yet
@@ -47,6 +48,7 @@ export class AuthService {
         id: data.user.id,
         displayName: dto.displayName,
         language: dto.language ?? 'fr',
+        ...(dto.phoneNumber ? { phoneNumber: dto.phoneNumber } : {}),
       },
     });
 

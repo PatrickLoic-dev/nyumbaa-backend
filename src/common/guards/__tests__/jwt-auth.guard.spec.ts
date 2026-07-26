@@ -2,12 +2,18 @@ import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtAuthGuard } from '../jwt-auth.guard';
 import { SupabaseService } from '../../supabase/supabase.service';
+import { RedisService } from '../../redis/redis.service';
 
 const mockUser = { id: 'user-uuid', email: 'test@example.com' };
 
 const mockAdminGetUser = jest.fn();
 const mockSupabase: Partial<SupabaseService> = {
   admin: { auth: { getUser: mockAdminGetUser } } as any,
+};
+
+const mockRedis: Partial<RedisService> = {
+  get: jest.fn().mockResolvedValue(null),
+  setex: jest.fn().mockResolvedValue(undefined),
 };
 
 function makeContext(authHeader?: string, metadata: Record<string, boolean> = {}): ExecutionContext {
@@ -28,7 +34,7 @@ describe('JwtAuthGuard', () => {
 
   beforeEach(() => {
     reflector = new Reflector();
-    guard = new JwtAuthGuard(mockSupabase as SupabaseService, reflector);
+    guard = new JwtAuthGuard(mockSupabase as SupabaseService, mockRedis as RedisService, reflector);
     jest.clearAllMocks();
   });
 
@@ -67,9 +73,14 @@ describe('JwtAuthGuard', () => {
     expect(request.user).toEqual(mockUser);
   });
 
-  it('uses cache and skips Supabase call on second request with same token', async () => {
+  it('uses Redis cache and skips Supabase call on cache hit', async () => {
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
     mockAdminGetUser.mockResolvedValue({ data: { user: mockUser }, error: null });
+
+    // First call: cache miss → Supabase called, result cached
+    (mockRedis.get as jest.Mock).mockResolvedValueOnce(null);
+    // Second call: cache hit → Supabase skipped
+    (mockRedis.get as jest.Mock).mockResolvedValueOnce(JSON.stringify(mockUser));
 
     const makeReq = () => ({ headers: { authorization: 'Bearer cached-token' } } as any);
     const makeCtx = (req: any) =>

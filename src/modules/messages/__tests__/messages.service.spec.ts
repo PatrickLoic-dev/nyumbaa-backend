@@ -7,6 +7,7 @@ import { ConversationType } from '@prisma/client';
 import { MessagesService } from '../messages.service';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { ConversationsService } from '../../conversations/conversations.service';
+import { RealtimeGateway } from '../../realtime/realtime.gateway';
 
 const SENDER_ID = 'sender-uuid';
 const RECIPIENT_ID = 'recipient-uuid';
@@ -38,6 +39,10 @@ const mockConversationsService = {
   assertMember: jest.fn(),
 };
 
+const mockRealtimeGateway = {
+  emitMessage: jest.fn(),
+};
+
 describe('MessagesService', () => {
   let service: MessagesService;
 
@@ -47,6 +52,7 @@ describe('MessagesService', () => {
         MessagesService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: ConversationsService, useValue: mockConversationsService },
+        { provide: RealtimeGateway, useValue: mockRealtimeGateway },
       ],
     }).compile();
 
@@ -63,6 +69,7 @@ describe('MessagesService', () => {
         service.create(SENDER_ID, SENDER_ID, { content: 'Hi' }),
       ).rejects.toThrow(BadRequestException);
       expect(mockPrisma.message.create).not.toHaveBeenCalled();
+      expect(mockRealtimeGateway.emitMessage).not.toHaveBeenCalled();
     });
 
     it('rejects content over 2000 characters', async () => {
@@ -70,6 +77,7 @@ describe('MessagesService', () => {
         service.create(RECIPIENT_ID, SENDER_ID, { content: 'a'.repeat(2001) }),
       ).rejects.toThrow(UnprocessableEntityException);
       expect(mockPrisma.message.create).not.toHaveBeenCalled();
+      expect(mockRealtimeGateway.emitMessage).not.toHaveBeenCalled();
     });
 
     it('creates a private conversation when none exists yet', async () => {
@@ -100,6 +108,10 @@ describe('MessagesService', () => {
         status: 'sent',
         createdAt: mockMessage.createdAt,
       });
+      expect(mockRealtimeGateway.emitMessage).toHaveBeenCalledWith(
+        CONVERSATION_ID,
+        result,
+      );
     });
 
     it('reuses an existing private conversation instead of creating a new one', async () => {

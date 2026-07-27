@@ -332,141 +332,171 @@ CREATE POLICY "push_tokens_own" ON push_tokens FOR ALL USING (user_id = auth.uid
 -- The NestJS backend authenticates with the service role key which bypasses RLS.
 -- No additional policy needed for backend operations.
 
--- ─── 6. Mock Data ─────────────────────────────────────────────────────────────
--- 5 users from different African countries / languages
--- UUIDs are fixed so references are consistent
+-- ─── 6. Mock Data (plain SQL, no PL/pgSQL block) ─────────────────────────────
+-- Fixed UUIDs for users
+-- u1 = Amara  (fr / Cameroun)  11111111-0000-0000-0000-000000000001
+-- u2 = Kwame  (en / Ghana)     11111111-0000-0000-0000-000000000002
+-- u3 = Zawadi (sw / Kenya)     11111111-0000-0000-0000-000000000003
+-- u4 = Adaeze (yo / Nigeria)   11111111-0000-0000-0000-000000000004
+-- u5 = Musa   (ha / Niger)     11111111-0000-0000-0000-000000000005
 
-DO $$
-DECLARE
-  u1 UUID := '11111111-0000-0000-0000-000000000001'; -- Amara  (fr / Cameroun)
-  u2 UUID := '11111111-0000-0000-0000-000000000002'; -- Kwame  (en / Ghana)
-  u3 UUID := '11111111-0000-0000-0000-000000000003'; -- Zawadi (sw / Kenya)
-  u4 UUID := '11111111-0000-0000-0000-000000000004'; -- Adaeze (yo / Nigeria)
-  u5 UUID := '11111111-0000-0000-0000-000000000005'; -- Musa   (ha / Niger)
+-- Fixed UUIDs for posts
+-- p1 = 22222222-0000-0000-0000-000000000001 (Amara)
+-- p2 = 22222222-0000-0000-0000-000000000002 (Kwame)
+-- p3 = 22222222-0000-0000-0000-000000000003 (Zawadi)
+-- p4 = 22222222-0000-0000-0000-000000000004 (Adaeze)
+-- p5 = 22222222-0000-0000-0000-000000000005 (Musa)
 
-  p1 UUID; p2 UUID; p3 UUID; p4 UUID; p5 UUID;
-  conv1 UUID; conv2 UUID;
-  m1 UUID; m2 UUID; m3 UUID; m4 UUID;
-BEGIN
+-- Fixed UUIDs for conversations
+-- conv1 = 33333333-0000-0000-0000-000000000001 (Amara <-> Kwame)
+-- conv2 = 33333333-0000-0000-0000-000000000002 (Zawadi <-> Adaeze)
+
+-- Fixed UUIDs for messages
+-- m1 = 44444444-0000-0000-0000-000000000001
+-- m2 = 44444444-0000-0000-0000-000000000002
+-- m3 = 44444444-0000-0000-0000-000000000003
+-- m4 = 44444444-0000-0000-0000-000000000004
 
 -- ── Profiles ──────────────────────────────────────────────────────────────────
 INSERT INTO profiles (id, display_name, username, bio, location, language, timezone, interests)
 VALUES
-  (u1, 'Amara Nkengne',  'amara_nk',  'Passionnée de culture africaine et de tech 🌍', 'Cameroun',     'fr', 'Africa/Douala',   ARRAY['Culture africaine','Technologie','Musique']),
-  (u2, 'Kwame Asante',   'kwame_gh',  'Software dev | Accra vibes ✌️',                  'Ghana',        'en', 'Africa/Accra',    ARRAY['Technologie','Sport','Business']),
-  (u3, 'Zawadi Odhiambo','zawadi_ke', 'Nakupenda Afrika | Nairobi 🦁',                  'Kenya',        'sw', 'Africa/Nairobi',  ARRAY['Voyage','Musique','Art']),
-  (u4, 'Adaeze Okonkwo', 'adaeze_ng', 'Writer & storyteller from Lagos 📖',             'Nigeria',      'yo', 'Africa/Lagos',    ARRAY['Art','Éducation','Politique']),
-  (u5, 'Musa Diallo',    'musa_ni',  'Entrepreneur | Niamey 🤝',                       'Niger',        'ha', 'Africa/Niamey',   ARRAY['Business','Famille','Actualités'])
+  ('11111111-0000-0000-0000-000000000001', 'Amara Nkengne',   'amara_nk',   'Passionnee de culture africaine et de tech', 'Cameroun', 'fr', 'Africa/Douala',  ARRAY['Culture africaine','Technologie','Musique']),
+  ('11111111-0000-0000-0000-000000000002', 'Kwame Asante',    'kwame_gh',   'Software dev | Accra vibes',                 'Ghana',    'en', 'Africa/Accra',   ARRAY['Technologie','Sport','Business']),
+  ('11111111-0000-0000-0000-000000000003', 'Zawadi Odhiambo', 'zawadi_ke',  'Nakupenda Afrika | Nairobi',                 'Kenya',    'sw', 'Africa/Nairobi', ARRAY['Voyage','Musique','Art']),
+  ('11111111-0000-0000-0000-000000000004', 'Adaeze Okonkwo',  'adaeze_ng',  'Writer and storyteller from Lagos',          'Nigeria',  'yo', 'Africa/Lagos',   ARRAY['Art','Education','Politique']),
+  ('11111111-0000-0000-0000-000000000005', 'Musa Diallo',     'musa_ni',    'Entrepreneur | Niamey',                      'Niger',    'ha', 'Africa/Niamey',  ARRAY['Business','Famille','Actualites'])
 ON CONFLICT (id) DO NOTHING;
 
 -- ── Posts ─────────────────────────────────────────────────────────────────────
 INSERT INTO posts (id, author_id, content, visibility, status, likes_count)
 VALUES
-  (gen_random_uuid(), u1,
-   'Fière de voir autant de jeunes Africains embrasser la technologie ! L''avenir du continent se construit aujourd''hui. 🚀 #AfriTech',
+  ('22222222-0000-0000-0000-000000000001',
+   '11111111-0000-0000-0000-000000000001',
+   'Fiere de voir autant de jeunes Africains embrasser la technologie ! L''avenir du continent se construit aujourd''hui. #AfriTech',
    'public', 'published', 12),
 
-  (gen_random_uuid(), u2,
-   'Just shipped a new feature for our fintech startup. Building for Africa, by Africans. The ecosystem is growing fast! 💪 #GhanaTech',
+  ('22222222-0000-0000-0000-000000000002',
+   '11111111-0000-0000-0000-000000000002',
+   'Just shipped a new feature for our fintech startup. Building for Africa, by Africans. The ecosystem is growing fast! #GhanaTech',
    'public', 'published', 28),
 
-  (gen_random_uuid(), u3,
-   'Safari ilikuwa ya ajabu! Maisha ya porini ni zawadi ya Afrika. 🦒🌅 Asante Kenya kwa urembo wako.',
+  ('22222222-0000-0000-0000-000000000003',
+   '11111111-0000-0000-0000-000000000003',
+   'Safari ilikuwa ya ajabu! Maisha ya porini ni zawadi ya Afrika. Asante Kenya kwa urembo wako.',
    'public', 'published', 45),
 
-  (gen_random_uuid(), u4,
-   'Ìtàn wa ní ìjìnlẹ̀ tó pọ̀. Àwa ará Áfríkà gbọdọ̀ pa àwọn ìtàn wa mọ́. Kọ ọ. Kọ̀wé rẹ̀. Pín an. 📚',
+  ('22222222-0000-0000-0000-000000000004',
+   '11111111-0000-0000-0000-000000000004',
+   'Itan wa ni ijinle to po. Awa ara Afrika gbodo pa awon itan wa mo. Ko o. Kowe re. Pin an.',
    'public', 'published', 19),
 
-  (gen_random_uuid(), u5,
-   'Kasuwancin Afirka na girma kowace rana. Dole ne mu tallafa wa juna a matsayin 'yan kasuwa. Hadin kai shi ne karfi! 🤝',
+  ('22222222-0000-0000-0000-000000000005',
+   '11111111-0000-0000-0000-000000000005',
+   'Kasuwancin Afirka na girma kowace rana. Dole ne mu tallafa wa juna a matsayin yan kasuwa. Hadin kai shi ne karfi!',
    'public', 'published', 8)
-RETURNING id INTO p1;
-
--- Grab post IDs for likes/comments
-SELECT id INTO p1 FROM posts WHERE author_id = u1 LIMIT 1;
-SELECT id INTO p2 FROM posts WHERE author_id = u2 LIMIT 1;
-SELECT id INTO p3 FROM posts WHERE author_id = u3 LIMIT 1;
-SELECT id INTO p4 FROM posts WHERE author_id = u4 LIMIT 1;
-SELECT id INTO p5 FROM posts WHERE author_id = u5 LIMIT 1;
+ON CONFLICT (id) DO NOTHING;
 
 -- ── Likes ─────────────────────────────────────────────────────────────────────
 INSERT INTO likes (post_id, user_id) VALUES
-  (p1, u2), (p1, u3), (p1, u4),
-  (p2, u1), (p2, u3), (p2, u5),
-  (p3, u1), (p3, u2), (p3, u4), (p3, u5),
-  (p4, u1), (p4, u3),
-  (p5, u2)
+  ('22222222-0000-0000-0000-000000000001', '11111111-0000-0000-0000-000000000002'),
+  ('22222222-0000-0000-0000-000000000001', '11111111-0000-0000-0000-000000000003'),
+  ('22222222-0000-0000-0000-000000000001', '11111111-0000-0000-0000-000000000004'),
+  ('22222222-0000-0000-0000-000000000002', '11111111-0000-0000-0000-000000000001'),
+  ('22222222-0000-0000-0000-000000000002', '11111111-0000-0000-0000-000000000003'),
+  ('22222222-0000-0000-0000-000000000002', '11111111-0000-0000-0000-000000000005'),
+  ('22222222-0000-0000-0000-000000000003', '11111111-0000-0000-0000-000000000001'),
+  ('22222222-0000-0000-0000-000000000003', '11111111-0000-0000-0000-000000000002'),
+  ('22222222-0000-0000-0000-000000000003', '11111111-0000-0000-0000-000000000004'),
+  ('22222222-0000-0000-0000-000000000003', '11111111-0000-0000-0000-000000000005'),
+  ('22222222-0000-0000-0000-000000000004', '11111111-0000-0000-0000-000000000001'),
+  ('22222222-0000-0000-0000-000000000004', '11111111-0000-0000-0000-000000000003'),
+  ('22222222-0000-0000-0000-000000000005', '11111111-0000-0000-0000-000000000002')
 ON CONFLICT DO NOTHING;
 
 -- ── Comments ──────────────────────────────────────────────────────────────────
 INSERT INTO comments (post_id, author_id, content) VALUES
-  (p1, u2, 'Totally agree! The African tech scene is unstoppable 🔥'),
-  (p1, u3, 'Ndio kabisa! Vijana wa Afrika wanabadilisha dunia.'),
-  (p2, u1, 'Bravo Kwame ! Fierté africaine 🙌'),
-  (p2, u4, 'This is inspiring! Keep building 💚'),
-  (p3, u1, 'Magnifique ! Le Kenya est tellement beau.'),
-  (p3, u2, 'One day I''ll go on that safari. Bucket list ✅'),
-  (p4, u1, 'Tellement important de préserver nos histoires. Merci Adaeze.'),
-  (p5, u1, 'La coopération africaine est la clé du développement !')
+  ('22222222-0000-0000-0000-000000000001', '11111111-0000-0000-0000-000000000002', 'Totally agree! The African tech scene is unstoppable'),
+  ('22222222-0000-0000-0000-000000000001', '11111111-0000-0000-0000-000000000003', 'Ndio kabisa! Vijana wa Afrika wanabadilisha dunia.'),
+  ('22222222-0000-0000-0000-000000000002', '11111111-0000-0000-0000-000000000001', 'Bravo Kwame ! Fierte africaine'),
+  ('22222222-0000-0000-0000-000000000002', '11111111-0000-0000-0000-000000000004', 'This is inspiring! Keep building'),
+  ('22222222-0000-0000-0000-000000000003', '11111111-0000-0000-0000-000000000001', 'Magnifique ! Le Kenya est tellement beau.'),
+  ('22222222-0000-0000-0000-000000000003', '11111111-0000-0000-0000-000000000002', 'One day I''ll go on that safari. Bucket list'),
+  ('22222222-0000-0000-0000-000000000004', '11111111-0000-0000-0000-000000000001', 'Tellement important de preserver nos histoires. Merci Adaeze.'),
+  ('22222222-0000-0000-0000-000000000005', '11111111-0000-0000-0000-000000000001', 'La cooperation africaine est la cle du developpement !')
 ON CONFLICT DO NOTHING;
 
 -- ── Follows ───────────────────────────────────────────────────────────────────
 INSERT INTO follows (follower_id, following_id) VALUES
-  (u1, u2), (u1, u3), (u1, u4),
-  (u2, u1), (u2, u3),
-  (u3, u1), (u3, u4), (u3, u5),
-  (u4, u1), (u4, u2),
-  (u5, u1), (u5, u3)
+  ('11111111-0000-0000-0000-000000000001', '11111111-0000-0000-0000-000000000002'),
+  ('11111111-0000-0000-0000-000000000001', '11111111-0000-0000-0000-000000000003'),
+  ('11111111-0000-0000-0000-000000000001', '11111111-0000-0000-0000-000000000004'),
+  ('11111111-0000-0000-0000-000000000002', '11111111-0000-0000-0000-000000000001'),
+  ('11111111-0000-0000-0000-000000000002', '11111111-0000-0000-0000-000000000003'),
+  ('11111111-0000-0000-0000-000000000003', '11111111-0000-0000-0000-000000000001'),
+  ('11111111-0000-0000-0000-000000000003', '11111111-0000-0000-0000-000000000004'),
+  ('11111111-0000-0000-0000-000000000003', '11111111-0000-0000-0000-000000000005'),
+  ('11111111-0000-0000-0000-000000000004', '11111111-0000-0000-0000-000000000001'),
+  ('11111111-0000-0000-0000-000000000004', '11111111-0000-0000-0000-000000000002'),
+  ('11111111-0000-0000-0000-000000000005', '11111111-0000-0000-0000-000000000001'),
+  ('11111111-0000-0000-0000-000000000005', '11111111-0000-0000-0000-000000000003')
 ON CONFLICT DO NOTHING;
 
--- ── Conversations & Messages ──────────────────────────────────────────────────
-INSERT INTO conversations (id, type, created_by)
-VALUES
-  (gen_random_uuid(), 'private', u1),
-  (gen_random_uuid(), 'private', u3)
-RETURNING id INTO conv1;
+-- ── Conversations ─────────────────────────────────────────────────────────────
+INSERT INTO conversations (id, type, created_by) VALUES
+  ('33333333-0000-0000-0000-000000000001', 'private', '11111111-0000-0000-0000-000000000001'),
+  ('33333333-0000-0000-0000-000000000002', 'private', '11111111-0000-0000-0000-000000000003')
+ON CONFLICT (id) DO NOTHING;
 
-SELECT id INTO conv1 FROM conversations WHERE created_by = u1 LIMIT 1;
-SELECT id INTO conv2 FROM conversations WHERE created_by = u3 LIMIT 1;
-
--- Members
+-- ── Conversation members ──────────────────────────────────────────────────────
 INSERT INTO conversation_members (conversation_id, user_id, role) VALUES
-  (conv1, u1, 'admin'),  (conv1, u2, 'member'),
-  (conv2, u3, 'admin'),  (conv2, u4, 'member')
+  ('33333333-0000-0000-0000-000000000001', '11111111-0000-0000-0000-000000000001', 'admin'),
+  ('33333333-0000-0000-0000-000000000001', '11111111-0000-0000-0000-000000000002', 'member'),
+  ('33333333-0000-0000-0000-000000000002', '11111111-0000-0000-0000-000000000003', 'admin'),
+  ('33333333-0000-0000-0000-000000000002', '11111111-0000-0000-0000-000000000004', 'member')
 ON CONFLICT DO NOTHING;
 
--- Messages
-INSERT INTO messages (id, conversation_id, sender_id, content, lang)
-VALUES
-  (gen_random_uuid(), conv1, u1, 'Salut Kwame ! J''ai vu ton post sur ta startup, c''est vraiment impressionnant 🙌', 'fr'),
-  (gen_random_uuid(), conv1, u2, 'Thanks Amara! We''re growing fast. Are you into tech too?', 'en'),
-  (gen_random_uuid(), conv2, u3, 'Habari Adaeze! Nilipenda hadithi yako kuhusu Afrika. 🌟', 'sw'),
-  (gen_random_uuid(), conv2, u4, 'Ẹ jẹ ká sọ̀rọ̀ nípa ìtàn wa! Mo fẹ́ gbọ àwọn ìtàn Kẹ́nyà.', 'yo')
-RETURNING id INTO m1;
+-- ── Messages ─────────────────────────────────────────────────────────────────
+INSERT INTO messages (id, conversation_id, sender_id, content, lang) VALUES
+  ('44444444-0000-0000-0000-000000000001',
+   '33333333-0000-0000-0000-000000000001',
+   '11111111-0000-0000-0000-000000000001',
+   'Salut Kwame ! J''ai vu ton post sur ta startup, c''est vraiment impressionnant',
+   'fr'),
 
-SELECT id INTO m1 FROM messages WHERE conversation_id = conv1 AND sender_id = u1 LIMIT 1;
-SELECT id INTO m2 FROM messages WHERE conversation_id = conv1 AND sender_id = u2 LIMIT 1;
-SELECT id INTO m3 FROM messages WHERE conversation_id = conv2 AND sender_id = u3 LIMIT 1;
-SELECT id INTO m4 FROM messages WHERE conversation_id = conv2 AND sender_id = u4 LIMIT 1;
+  ('44444444-0000-0000-0000-000000000002',
+   '33333333-0000-0000-0000-000000000001',
+   '11111111-0000-0000-0000-000000000002',
+   'Thanks Amara! We are growing fast. Are you into software development',
+   'en'),
 
--- Message statuses
+  ('44444444-0000-0000-0000-000000000003',
+   '33333333-0000-0000-0000-000000000002',
+   '11111111-0000-0000-0000-000000000003',
+   'Habari Adaeze! Nilipenda hadithi yako kuhusu Afrika.',
+   'sw'),
+
+  ('44444444-0000-0000-0000-000000000004',
+   '33333333-0000-0000-0000-000000000002',
+   '11111111-0000-0000-0000-000000000004',
+   'E je ka soro nipa itan wa! Mo fe gbo awon itan Kenya.',
+   'yo')
+ON CONFLICT (id) DO NOTHING;
+
+-- ── Message statuses ──────────────────────────────────────────────────────────
 INSERT INTO message_statuses (message_id, user_id, status) VALUES
-  (m1, u2, 'read'),
-  (m2, u1, 'read'),
-  (m3, u4, 'delivered'),
-  (m4, u3, 'sent')
+  ('44444444-0000-0000-0000-000000000001', '11111111-0000-0000-0000-000000000002', 'read'),
+  ('44444444-0000-0000-0000-000000000002', '11111111-0000-0000-0000-000000000001', 'read'),
+  ('44444444-0000-0000-0000-000000000003', '11111111-0000-0000-0000-000000000004', 'delivered'),
+  ('44444444-0000-0000-0000-000000000004', '11111111-0000-0000-0000-000000000003', 'sent')
 ON CONFLICT DO NOTHING;
 
--- Translations cache (simulating what DeepL would return)
+-- ── Translations cache ────────────────────────────────────────────────────────
 INSERT INTO translations_cache (message_id, target_lang, translated_text) VALUES
-  (m1, 'en', 'Hey Kwame! I saw your post about your startup, it''s really impressive 🙌'),
-  (m2, 'fr', 'Merci Amara ! Nous grandissons vite. Tu es dans la tech aussi ?'),
-  (m3, 'yo', 'Bawo ni Adaeze! Mo fẹ́ràn ìtàn rẹ nípa Áfríkà. 🌟'),
-  (m4, 'sw', 'Hebu tuzungumze kuhusu hadithi zetu! Nataka kusikia hadithi za Kenya.')
+  ('44444444-0000-0000-0000-000000000001', 'en', 'Hey Kwame! I saw your post about your startup, it''s really impressive'),
+  ('44444444-0000-0000-0000-000000000002', 'fr', 'Merci Amara ! Nous grandissons vite. Tu travailles dans le developpement logiciel'),
+  ('44444444-0000-0000-0000-000000000003', 'yo', 'Bawo ni Adaeze! Mo feran itan re nipa Afrika.'),
+  ('44444444-0000-0000-0000-000000000004', 'sw', 'Hebu tuzungumze kuhusu hadithi zetu! Nataka kusikia hadithi za Kenya.')
 ON CONFLICT DO NOTHING;
-
-END $$;
 
 -- ─── 7. Verify ────────────────────────────────────────────────────────────────
 SELECT 'profiles'             AS "table", COUNT(*) FROM profiles

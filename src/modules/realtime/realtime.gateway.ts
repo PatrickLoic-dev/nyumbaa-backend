@@ -64,4 +64,11 @@ export class RealtimeGateway
   emitMessage(conversationId: string, message: object) {
     this.server.to(conversationId).emit('message:new', message);
   }
+
+  emitTranslation(
+    conversationId: string,
+    payload: { messageId: string; lang: string; translatedText: string },
+  ) {
+    this.server.to(conversationId).emit('message:translated', payload);
+  }
 }

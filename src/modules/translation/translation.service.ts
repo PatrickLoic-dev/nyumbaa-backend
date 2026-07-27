@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as deepl from 'deepl-node';
 import { PrismaService } from '../../common/prisma/prisma.service';
@@ -6,16 +6,27 @@ import { TranslateDto } from './dto/translate.dto';
 
 @Injectable()
 export class TranslationService {
-  private readonly translator: deepl.Translator;
+  private readonly logger = new Logger(TranslationService.name);
+  private readonly translator: deepl.Translator | null;
 
   constructor(
     private readonly config: ConfigService,
     private readonly prisma: PrismaService,
   ) {
-    this.translator = new deepl.Translator(this.config.get<string>('deepl.apiKey')!);
+    const apiKey = this.config.get<string>('deepl.apiKey');
+    if (apiKey) {
+      this.translator = new deepl.Translator(apiKey);
+    } else {
+      this.translator = null;
+      this.logger.warn('DEEPL_API_KEY not set — translation disabled');
+    }
   }
 
-  async translate(dto: TranslateDto) {
+  async translate(dto: TranslateDto): Promise<{ translatedText: string; cached: boolean }> {
+    if (!this.translator) {
+      return { translatedText: dto.text, cached: false };
+    }
+
     const cached = await this.prisma.translationCache.findUnique({
       where: {
         messageId_targetLang: {

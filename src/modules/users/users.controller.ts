@@ -1,7 +1,18 @@
-import { Controller, Get, Patch, Param, Body } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Patch,
+  Post,
+  Param,
+  Body,
+  HttpCode,
+  HttpStatus,
+  Headers,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { SendPhoneOtpDto, VerifyPhoneOtpDto } from './dto/phone-otp.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { User } from '@supabase/supabase-js';
 
@@ -21,6 +32,30 @@ export class UsersController {
   @ApiOperation({ summary: 'Update current user profile' })
   updateMe(@CurrentUser() user: User, @Body() dto: UpdateProfileDto) {
     return this.usersService.updateMe(user.id, dto);
+  }
+
+  @Post('me/phone/send-otp')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Send SMS OTP to verify phone number (requires Supabase phone auth)' })
+  sendPhoneOtp(
+    @CurrentUser() user: User,
+    @Headers('authorization') auth: string,
+    @Body() dto: SendPhoneOtpDto,
+  ) {
+    const jwt = auth?.slice(7) ?? '';
+    return this.usersService.sendPhoneOtp(jwt, dto.phone);
+  }
+
+  @Post('me/phone/verify-otp')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Verify SMS OTP and mark phone as verified' })
+  verifyPhoneOtp(
+    @CurrentUser() user: User,
+    @Headers('authorization') auth: string,
+    @Body() dto: VerifyPhoneOtpDto,
+  ) {
+    const jwt = auth?.slice(7) ?? '';
+    return this.usersService.verifyPhoneOtp(jwt, user.id, dto.phone, dto.token);
   }
 
   @Get(':id')

@@ -41,13 +41,16 @@ export class AuthService {
     }
 
     // Upsert profile so it exists even if the Supabase trigger hasn't run yet
+    // Derive a display name from the email prefix if not provided
+    const displayName = dto.displayName?.trim() || dto.email.split('@')[0];
+
     await this.prisma.profile.upsert({
       where: { id: data.user.id },
       update: {},
       create: {
         id: data.user.id,
-        displayName: dto.displayName,
-        language: dto.language ?? 'fr',
+        displayName,
+        language: 'fr',
         ...(dto.phoneNumber ? { phoneNumber: dto.phoneNumber } : {}),
       },
     });

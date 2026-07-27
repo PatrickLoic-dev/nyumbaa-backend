@@ -1,4 +1,13 @@
-import { IsOptional, IsString, IsUrl, IsEnum, Matches } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsUrl,
+  IsEnum,
+  Matches,
+  MaxLength,
+  IsArray,
+  ArrayMaxSize,
+} from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { AppLanguage } from '@prisma/client';
 
@@ -6,7 +15,34 @@ export class UpdateProfileDto {
   @ApiPropertyOptional({ example: 'Amara Diallo' })
   @IsOptional()
   @IsString()
+  @MaxLength(48)
   displayName?: string;
+
+  @ApiPropertyOptional({ example: 'amara_diallo', description: 'Unique username (alphanumeric + _)' })
+  @IsOptional()
+  @Matches(/^[a-zA-Z0-9_]{2,30}$/, {
+    message: 'username must be 2-30 chars: letters, numbers and underscores only',
+  })
+  username?: string;
+
+  @ApiPropertyOptional({ example: 'Passionné de culture africaine 🌍' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  bio?: string;
+
+  @ApiPropertyOptional({ example: 'Cameroun' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  location?: string;
+
+  @ApiPropertyOptional({ example: ['Musique', 'Sport'] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @ArrayMaxSize(5)
+  interests?: string[];
 
   @ApiPropertyOptional()
   @IsOptional()

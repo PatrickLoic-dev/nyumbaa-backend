@@ -14,7 +14,7 @@ export const validationSchema = Joi.object({
   RESEND_API_KEY: Joi.string().required(),
   RESEND_FROM_EMAIL: Joi.string().email().default('noreply@nyumbaa.app'),
   EXPO_ACCESS_TOKEN: Joi.string().optional(),
-  DEEPL_API_KEY: Joi.string().required(),
+  DEEPL_API_KEY: Joi.string().optional(),
   REDIS_URL: Joi.string().default('redis://localhost:6379'),
   PERSPECTIVE_API_KEY: Joi.string().optional(),
   SUPABASE_STORAGE_BUCKET: Joi.string().default('post-images'),

@@ -67,9 +67,14 @@ model Profile {
   avatarUrl     String?     @map("avatar_url")
   language      AppLanguage @default(fr)
   timezone      String      @default("UTC")
-  phoneNumber   String?     @unique @map("phone_number")
-  phoneVerified Boolean     @default(false) @map("phone_verified")
-  createdAt     DateTime    @default(now()) @map("created_at")
+  username      String?     @unique @map("username") @db.VarChar(30)
+  bio           String?     @map("bio") @db.VarChar(80)
+  location      String?     @map("location") @db.VarChar(100)
+  interests     String[]    @map("interests")
+  phoneNumber               String?     @unique @map("phone_number")
+  phoneVerified             Boolean     @default(false) @map("phone_verified")
+  emailNotificationsEnabled Boolean     @default(true) @map("email_notifications_enabled")
+  createdAt                 DateTime    @default(now()) @map("created_at")
   updatedAt     DateTime    @updatedAt @map("updated_at")
 
   sentMessages        Message[]

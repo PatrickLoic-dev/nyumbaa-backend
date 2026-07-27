@@ -39,9 +39,27 @@ import { CommentsModule } from './modules/comments/comments.module';
     LoggerModule.forRoot({
       pinoHttp: {
         level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
+        autoLogging: true,
+        // Log response time + status on every request in dev
+        customSuccessMessage: (req, res) =>
+          `${req.method} ${req.url} → ${res.statusCode}`,
+        customErrorMessage: (req, res, err) =>
+          `${req.method} ${req.url} → ${res.statusCode} (${err.message})`,
+        serializers: {
+          req: (req) => ({ method: req.method, url: req.url }),
+          res: (res) => ({ statusCode: res.statusCode }),
+        },
         transport:
           process.env.NODE_ENV !== 'production'
-            ? { target: 'pino-pretty', options: { colorize: true } }
+            ? {
+                target: 'pino-pretty',
+                options: {
+                  colorize: true,
+                  translateTime: 'HH:MM:ss',
+                  ignore: 'pid,hostname',
+                  messageFormat: '{msg} {req.method} {req.url} [{responseTime}ms]',
+                },
+              }
             : undefined,
       },
     }),

@@ -9,6 +9,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import { ConversationsService } from '../conversations/conversations.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
+import { TranslationService } from '../translation/translation.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { CursorPaginationDto } from './dto/cursor-pagination.dto';
 
@@ -24,6 +25,7 @@ export class MessagesService {
     private readonly conversations: ConversationsService,
     private readonly realtime: RealtimeGateway,
     private readonly notifications: NotificationsService,
+    private readonly translation: TranslationService,
   ) {}
 
   async findAll(
@@ -85,6 +87,17 @@ export class MessagesService {
 
     this.realtime.emitMessage(conversationId, payload);
 
+    // Translate async — does not block the response
+    this.translateForConversation(
+      message.id,
+      conversationId,
+      dto.content,
+      dto.lang ?? 'fr',
+      senderId,
+    ).catch((err) =>
+      this.logger.error(`Translation failed for message ${message.id}: ${err.message}`),
+    );
+
     this.notifications
       .sendPushNotification(recipientId, {
         title: message.sender.displayName,
@@ -98,6 +111,48 @@ export class MessagesService {
       );
 
     return payload;
+  }
+
+  /**
+   * Fetches the preferred language of each conversation member (excluding sender),
+   * translates the message into each unique target language, then emits
+   * a `message:translated` WebSocket event per language.
+   */
+  private async translateForConversation(
+    messageId: string,
+    conversationId: string,
+    text: string,
+    sourceLang: string,
+    senderId: string,
+  ): Promise<void> {
+    const members = await this.prisma.conversationMember.findMany({
+      where: { conversationId, userId: { not: senderId } },
+      include: { user: { select: { language: true } } },
+    });
+
+    // Collect unique target languages that differ from the source
+    const targetLangs = [
+      ...new Set(
+        members
+          .map((m) => m.user.language as string)
+          .filter((lang) => lang !== sourceLang),
+      ),
+    ];
+
+    await Promise.all(
+      targetLangs.map(async (targetLang) => {
+        const { translatedText } = await this.translation.translate({
+          messageId,
+          text,
+          targetLang,
+        });
+        this.realtime.emitTranslation(conversationId, {
+          messageId,
+          lang: targetLang,
+          translatedText,
+        });
+      }),
+    );
   }
 
   private async findOrCreatePrivateConversation(

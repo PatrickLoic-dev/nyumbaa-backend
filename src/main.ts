@@ -1,3 +1,9 @@
+// Polyfill WebSocket for Node.js < 22 (required by @supabase/realtime-js)
+if (!globalThis.WebSocket) {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  globalThis.WebSocket = require('ws');
+}
+
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger as NestLogger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';

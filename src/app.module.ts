@@ -17,6 +17,7 @@ import { MailModule } from './modules/mail/mail.module';
 import { PostsModule } from './modules/posts/posts.module';
 import { LikesModule } from './modules/likes/likes.module';
 import { CommentsModule } from './modules/comments/comments.module';
+import { CommunitiesModule } from './modules/communities/communities.module';
 
 @Module({
   imports: [
@@ -77,6 +78,7 @@ import { CommentsModule } from './modules/comments/comments.module';
     PostsModule,
     LikesModule,
     CommentsModule,
+    CommunitiesModule,
   ],
 })
 export class AppModule {}

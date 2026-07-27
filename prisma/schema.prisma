@@ -85,8 +85,38 @@ model Profile {
   mentionedIn         PostMention[]
   likes               Like[]
   comments            Comment[]
+  communityMemberships CommunityMember[]
+  createdCommunities  Community[]
 
   @@map("profiles")
+}
+
+model Community {
+  id          String   @id @default(uuid())
+  name        String   @db.VarChar(100)
+  description String?  @db.VarChar(500)
+  avatarUrl   String?  @map("avatar_url")
+  createdBy   String   @map("created_by")
+  memberCount Int      @default(0) @map("member_count")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  creator Profile           @relation(fields: [createdBy], references: [id])
+  members CommunityMember[]
+
+  @@map("communities")
+}
+
+model CommunityMember {
+  communityId String   @map("community_id")
+  userId      String   @map("user_id")
+  joinedAt    DateTime @default(now()) @map("joined_at")
+
+  community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  user      Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([communityId, userId])
+  @@map("community_members")
 }
 
 model Post {

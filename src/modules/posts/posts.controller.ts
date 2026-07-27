@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   Body,
+  Query,
   HttpCode,
   HttpStatus,
   UseGuards,
@@ -19,6 +20,7 @@ import {
 import { PostsService } from './posts.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { UploadUrlDto } from './dto/upload-url.dto';
+import { FeedQueryDto } from './dto/feed-query.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { User } from '@supabase/supabase-js';
@@ -29,6 +31,27 @@ import { User } from '@supabase/supabase-js';
 @Controller('posts')
 export class PostsController {
   constructor(private readonly postsService: PostsService) {}
+
+  @Get()
+  @ApiOperation({ summary: 'Public feed — cursor-based, newest first' })
+  @ApiOkResponse({ description: '{ data, nextCursor, hasMore }' })
+  getFeed(@CurrentUser() user: User, @Query() q: FeedQueryDto) {
+    return this.postsService.findFeed(user.id, q.cursor, q.limit);
+  }
+
+  @Get('trending')
+  @ApiOperation({ summary: 'Trending posts (most liked in last 24 h)' })
+  @ApiOkResponse({ description: 'PostWithMeta[]' })
+  getTrending(@CurrentUser() user: User) {
+    return this.postsService.findTrending(user.id);
+  }
+
+  @Get('trending/topics')
+  @ApiOperation({ summary: 'Trending topics derived from user interests' })
+  @ApiOkResponse({ description: '{ label, count }[]' })
+  getTrendingTopics() {
+    return this.postsService.findTrendingTopics();
+  }
 
   @Post('upload-url')
   @HttpCode(HttpStatus.OK)

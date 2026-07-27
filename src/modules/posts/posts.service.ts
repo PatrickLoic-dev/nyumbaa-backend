@@ -99,6 +99,79 @@ export class PostsService implements OnModuleInit {
     return this.uploadService.createPostImageUploadUrl(filename, contentType);
   }
 
+  async findFeed(requesterId: string, cursor?: string, limit = 15) {
+    const take = limit + 1;
+    const posts = await this.prisma.post.findMany({
+      where: {
+        visibility: 'public',
+        status: 'published',
+        ...(cursor ? { createdAt: { lt: new Date(cursor) } } : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+      take,
+      include: {
+        author: { select: { id: true, displayName: true, avatarUrl: true, username: true } },
+        images: { orderBy: { order: 'asc' } },
+        _count: { select: { comments: true } },
+        likes: { where: { userId: requesterId }, select: { userId: true } },
+      },
+    });
+
+    const hasMore = posts.length > limit;
+    const data = (hasMore ? posts.slice(0, limit) : posts).map((p) => ({
+      ...p,
+      likedByMe: p.likes.length > 0,
+      commentsCount: p._count.comments,
+      likes: undefined,
+      _count: undefined,
+    }));
+
+    return {
+      data,
+      nextCursor: hasMore ? data[data.length - 1].createdAt.toISOString() : null,
+      hasMore,
+    };
+  }
+
+  async findTrending(requesterId: string, limit = 10) {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const posts = await this.prisma.post.findMany({
+      where: { visibility: 'public', status: 'published', createdAt: { gte: since } },
+      orderBy: { likesCount: 'desc' },
+      take: limit,
+      include: {
+        author: { select: { id: true, displayName: true, avatarUrl: true, username: true } },
+        images: { orderBy: { order: 'asc' } },
+        _count: { select: { comments: true } },
+        likes: { where: { userId: requesterId }, select: { userId: true } },
+      },
+    });
+
+    return posts.map((p) => ({
+      ...p,
+      likedByMe: p.likes.length > 0,
+      commentsCount: p._count.comments,
+      likes: undefined,
+      _count: undefined,
+    }));
+  }
+
+  async findTrendingTopics() {
+    const profiles = await this.prisma.profile.findMany({
+      select: { interests: true },
+    });
+    const counts: Record<string, number> = {};
+    for (const p of profiles) {
+      for (const interest of p.interests) {
+        counts[interest] = (counts[interest] ?? 0) + 1;
+      }
+    }
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 20)
+      .map(([label, count]) => ({ label, count }));
+  }
+
   async findOneForUser(postId: string, requesterId: string) {
     const post = await this.prisma.post.findUnique({
       where: { id: postId },

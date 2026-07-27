@@ -176,9 +176,10 @@ export class PostsService implements OnModuleInit {
     const post = await this.prisma.post.findUnique({
       where: { id: postId },
       include: {
-        author: true,
-        mentions: true,
+        author: { select: { id: true, displayName: true, avatarUrl: true, username: true } },
         images: { orderBy: { order: 'asc' } },
+        _count: { select: { comments: true } },
+        likes: { where: { userId: requesterId }, select: { userId: true } },
       },
     });
 
@@ -187,7 +188,13 @@ export class PostsService implements OnModuleInit {
       throw new ForbiddenException('This post is private');
     }
 
-    return post;
+    return {
+      ...post,
+      commentsCount: post._count.comments,
+      likedByMe: post.likes.length > 0,
+      likes: undefined,
+      _count: undefined,
+    };
   }
 
   // ---------------------------------------------------------------------------

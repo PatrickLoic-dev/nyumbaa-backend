@@ -28,6 +28,76 @@ export class NotificationsService {
     });
   }
 
+  async getNotifications(userId: string) {
+    const myPosts = await this.prisma.post.findMany({
+      where: { authorId: userId },
+      select: { id: true, content: true },
+    });
+    const myPostIds = myPosts.map((p) => p.id);
+    const postContentMap = new Map(myPosts.map((p) => [p.id, p.content.slice(0, 60)]));
+
+    const [recentLikes, recentComments] = await Promise.all([
+      this.prisma.like.findMany({
+        where: { postId: { in: myPostIds }, userId: { not: userId } },
+        include: { user: { select: { id: true, displayName: true, avatarUrl: true, username: true } } },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      }),
+      this.prisma.comment.findMany({
+        where: { postId: { in: myPostIds }, authorId: { not: userId }, status: 'published' },
+        include: { author: { select: { id: true, displayName: true, avatarUrl: true, username: true } } },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      }),
+    ]);
+
+    const notifications = [
+      ...recentLikes.map((l) => ({
+        id: `like-${l.postId}-${l.userId}`,
+        type: 'like' as const,
+        actor: l.user,
+        postId: l.postId,
+        postPreview: postContentMap.get(l.postId) ?? '',
+        createdAt: l.createdAt,
+      })),
+      ...recentComments.map((c) => ({
+        id: `comment-${c.id}`,
+        type: 'comment' as const,
+        actor: c.author,
+        postId: c.postId,
+        postPreview: postContentMap.get(c.postId) ?? '',
+        commentPreview: c.content.slice(0, 80),
+        createdAt: c.createdAt,
+      })),
+    ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    return notifications;
+  }
+
+  async getSettings(userId: string) {
+    return this.prisma.profile.findUnique({
+      where: { id: userId },
+      select: {
+        pushFollowers: true, pushComments: true, pushLikes: true,
+        emailFollowers: true, emailComments: true, emailLikes: true,
+      },
+    });
+  }
+
+  async updateSettings(userId: string, dto: {
+    pushFollowers?: boolean; pushComments?: boolean; pushLikes?: boolean;
+    emailFollowers?: boolean; emailComments?: boolean; emailLikes?: boolean;
+  }) {
+    return this.prisma.profile.update({
+      where: { id: userId },
+      data: dto,
+      select: {
+        pushFollowers: true, pushComments: true, pushLikes: true,
+        emailFollowers: true, emailComments: true, emailLikes: true,
+      },
+    });
+  }
+
   async registerToken(userId: string, dto: RegisterTokenDto) {
     return this.prisma.pushToken.upsert({
       where: {

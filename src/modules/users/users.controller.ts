@@ -3,6 +3,7 @@ import {
   Get,
   Patch,
   Post,
+  Delete,
   Param,
   Body,
   HttpCode,
@@ -25,7 +26,7 @@ export class UsersController {
   @Get('me')
   @ApiOperation({ summary: 'Get current user profile' })
   getMe(@CurrentUser() user: User) {
-    return this.usersService.findById(user.id);
+    return this.usersService.findById(user.id, user.id);
   }
 
   @Patch('me')
@@ -36,7 +37,7 @@ export class UsersController {
 
   @Post('me/phone/send-otp')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Send SMS OTP to verify phone number (requires Supabase phone auth)' })
+  @ApiOperation({ summary: 'Send SMS OTP to verify phone number' })
   sendPhoneOtp(
     @CurrentUser() user: User,
     @Headers('authorization') auth: string,
@@ -60,7 +61,39 @@ export class UsersController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get user profile by id' })
-  findOne(@Param('id') id: string) {
-    return this.usersService.findById(id);
+  findOne(@CurrentUser() user: User, @Param('id') id: string) {
+    return this.usersService.findById(id, user.id);
+  }
+
+  @Get(':id/posts')
+  @ApiOperation({ summary: 'Get posts by user' })
+  getUserPosts(@CurrentUser() user: User, @Param('id') id: string) {
+    return this.usersService.getUserPosts(id, user.id);
+  }
+
+  @Get(':id/followers')
+  @ApiOperation({ summary: 'Get followers of user' })
+  getFollowers(@CurrentUser() user: User, @Param('id') id: string) {
+    return this.usersService.getFollowers(id, user.id);
+  }
+
+  @Get(':id/following')
+  @ApiOperation({ summary: 'Get users that user is following' })
+  getFollowing(@CurrentUser() user: User, @Param('id') id: string) {
+    return this.usersService.getFollowing(id, user.id);
+  }
+
+  @Post(':id/follow')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Follow a user' })
+  follow(@CurrentUser() user: User, @Param('id') id: string) {
+    return this.usersService.follow(user.id, id);
+  }
+
+  @Delete(':id/follow')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Unfollow a user' })
+  unfollow(@CurrentUser() user: User, @Param('id') id: string) {
+    return this.usersService.unfollow(user.id, id);
   }
 }

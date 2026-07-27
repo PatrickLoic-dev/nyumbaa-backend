@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -15,10 +16,19 @@ export class UsersService {
     private readonly supabase: SupabaseService,
   ) {}
 
-  async findById(id: string) {
+  async findById(id: string, requesterId?: string) {
     const profile = await this.prisma.profile.findUnique({ where: { id } });
     if (!profile) throw new NotFoundException('User not found');
-    return profile;
+    const [followersCount, followingCount, followedByMe] = await Promise.all([
+      this.prisma.follow.count({ where: { followingId: id } }),
+      this.prisma.follow.count({ where: { followerId: id } }),
+      requesterId
+        ? this.prisma.follow.findUnique({
+            where: { followerId_followingId: { followerId: requesterId, followingId: id } },
+          })
+        : null,
+    ]);
+    return { ...profile, followersCount, followingCount, followedByMe: !!followedByMe };
   }
 
   async updateMe(id: string, dto: UpdateProfileDto) {
@@ -35,10 +45,72 @@ export class UsersService {
     });
   }
 
-  /**
-   * Request a phone OTP via Supabase (requires phone auth + Twilio configured).
-   * Supabase will send an SMS with a 6-digit code.
-   */
+  async follow(followerId: string, followingId: string) {
+    if (followerId === followingId) throw new BadRequestException('Cannot follow yourself');
+    await this.prisma.follow.upsert({
+      where: { followerId_followingId: { followerId, followingId } },
+      create: { followerId, followingId },
+      update: {},
+    });
+    const count = await this.prisma.follow.count({ where: { followingId } });
+    return { followingId, followed: true, followersCount: count };
+  }
+
+  async unfollow(followerId: string, followingId: string) {
+    await this.prisma.follow.deleteMany({ where: { followerId, followingId } });
+    const count = await this.prisma.follow.count({ where: { followingId } });
+    return { followingId, followed: false, followersCount: count };
+  }
+
+  async getFollowers(id: string, requesterId?: string) {
+    const follows = await this.prisma.follow.findMany({
+      where: { followingId: id },
+      include: { follower: { select: { id: true, displayName: true, avatarUrl: true, username: true, bio: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+    const ids = follows.map((f) => f.followerId);
+    const myFollowing = requesterId
+      ? await this.prisma.follow.findMany({ where: { followerId: requesterId, followingId: { in: ids } } })
+      : [];
+    const myFollowingSet = new Set(myFollowing.map((f) => f.followingId));
+    return follows.map((f) => ({ ...f.follower, followedByMe: myFollowingSet.has(f.follower.id) }));
+  }
+
+  async getFollowing(id: string, requesterId?: string) {
+    const follows = await this.prisma.follow.findMany({
+      where: { followerId: id },
+      include: { following: { select: { id: true, displayName: true, avatarUrl: true, username: true, bio: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+    const ids = follows.map((f) => f.followingId);
+    const myFollowing = requesterId
+      ? await this.prisma.follow.findMany({ where: { followerId: requesterId, followingId: { in: ids } } })
+      : [];
+    const myFollowingSet = new Set(myFollowing.map((f) => f.followingId));
+    return follows.map((f) => ({ ...f.following, followedByMe: myFollowingSet.has(f.following.id) }));
+  }
+
+  async getUserPosts(userId: string, requesterId?: string) {
+    const posts = await this.prisma.post.findMany({
+      where: { authorId: userId, status: 'published' },
+      include: {
+        author: { select: { id: true, displayName: true, avatarUrl: true, username: true } },
+        images: { orderBy: { order: 'asc' } },
+        _count: { select: { comments: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    const myLikes = requesterId
+      ? await this.prisma.like.findMany({ where: { userId: requesterId, postId: { in: posts.map((p) => p.id) } } })
+      : [];
+    const likedSet = new Set(myLikes.map((l) => l.postId));
+    return posts.map((p) => ({
+      ...p,
+      commentsCount: p._count.comments,
+      likedByMe: likedSet.has(p.id),
+    }));
+  }
+
   async sendPhoneOtp(userJwt: string, phone: string): Promise<void> {
     const { error } = await this.supabase.forUser(userJwt).auth.updateUser({ phone });
     if (error) {
@@ -46,10 +118,6 @@ export class UsersService {
     }
   }
 
-  /**
-   * Verify the OTP and mark the phone as verified in our DB.
-   * Requires Supabase phone auth (Twilio) to be configured.
-   */
   async verifyPhoneOtp(
     userJwt: string,
     userId: string,

@@ -74,6 +74,12 @@ model Profile {
   phoneNumber               String?     @unique @map("phone_number")
   phoneVerified             Boolean     @default(false) @map("phone_verified")
   emailNotificationsEnabled Boolean     @default(true) @map("email_notifications_enabled")
+  pushFollowers             Boolean     @default(true) @map("push_followers")
+  pushComments              Boolean     @default(true) @map("push_comments")
+  pushLikes                 Boolean     @default(true) @map("push_likes")
+  emailFollowers            Boolean     @default(true) @map("email_followers")
+  emailComments             Boolean     @default(true) @map("email_comments")
+  emailLikes                Boolean     @default(true) @map("email_likes")
   createdAt                 DateTime    @default(now()) @map("created_at")
   updatedAt     DateTime    @updatedAt @map("updated_at")
 
@@ -87,8 +93,23 @@ model Profile {
   comments            Comment[]
   communityMemberships CommunityMember[]
   createdCommunities  Community[]
+  followers           Follow[]            @relation("UserFollowers")
+  following           Follow[]            @relation("UserFollowing")
 
   @@map("profiles")
+}
+
+model Follow {
+  followerId  String   @map("follower_id")
+  followingId String   @map("following_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  follower  Profile @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
+  following Profile @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+  @@index([followingId])
+  @@map("follows")
 }
 
 model Community {

@@ -18,6 +18,7 @@ import { PostsModule } from './modules/posts/posts.module';
 import { LikesModule } from './modules/likes/likes.module';
 import { CommentsModule } from './modules/comments/comments.module';
 import { CommunitiesModule } from './modules/communities/communities.module';
+import { SearchModule } from './modules/search/search.module';
 
 @Module({
   imports: [
@@ -79,6 +80,7 @@ import { CommunitiesModule } from './modules/communities/communities.module';
     LikesModule,
     CommentsModule,
     CommunitiesModule,
+    SearchModule,
   ],
 })
 export class AppModule {}

@@ -120,7 +120,7 @@ export class UploadService {
       .createSignedUploadUrl(s3Key, { upsert: true });
 
     if (error || !data) {
-      throw new BadRequestException('Failed to generate avatar upload URL');
+      throw new BadRequestException(`Failed to generate avatar upload URL: ${error?.message ?? 'no data'} (bucket: ${bucket})`);
     }
 
     const supabaseUrl = this.config.get<string>('supabase.url')!;

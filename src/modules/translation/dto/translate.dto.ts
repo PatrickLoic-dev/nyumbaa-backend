@@ -1,10 +1,11 @@
-import { IsString, IsUUID } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsOptional, IsString, IsUUID } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class TranslateDto {
-  @ApiProperty()
+  @ApiPropertyOptional({ description: 'ID of the message to cache the translation (omit for posts)' })
+  @IsOptional()
   @IsUUID('4')
-  messageId!: string;
+  messageId?: string;
 
   @ApiProperty()
   @IsString()

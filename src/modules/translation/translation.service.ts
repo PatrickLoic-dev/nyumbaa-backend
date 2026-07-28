@@ -27,16 +27,19 @@ export class TranslationService {
       return { translatedText: dto.text, cached: false };
     }
 
-    const cached = await this.prisma.translationCache.findUnique({
-      where: {
-        messageId_targetLang: {
-          messageId: dto.messageId,
-          targetLang: dto.targetLang,
+    // Only use cache for message translations (messageId links to messages table)
+    if (dto.messageId) {
+      const cached = await this.prisma.translationCache.findUnique({
+        where: {
+          messageId_targetLang: {
+            messageId: dto.messageId,
+            targetLang: dto.targetLang,
+          },
         },
-      },
-    });
+      });
 
-    if (cached) return { translatedText: cached.translatedText, cached: true };
+      if (cached) return { translatedText: cached.translatedText, cached: true };
+    }
 
     const result = await this.translator.translateText(
       dto.text,
@@ -46,13 +49,15 @@ export class TranslationService {
 
     const translatedText = result.text;
 
-    await this.prisma.translationCache.create({
-      data: {
-        messageId: dto.messageId,
-        targetLang: dto.targetLang,
-        translatedText,
-      },
-    });
+    if (dto.messageId) {
+      await this.prisma.translationCache.create({
+        data: {
+          messageId: dto.messageId,
+          targetLang: dto.targetLang,
+          translatedText,
+        },
+      });
+    }
 
     return { translatedText, cached: false };
   }

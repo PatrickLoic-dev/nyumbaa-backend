@@ -164,12 +164,26 @@ CREATE TABLE IF NOT EXISTS "push_tokens" (
     CONSTRAINT "push_tokens_pkey" PRIMARY KEY ("id")
 );
 
+CREATE TABLE IF NOT EXISTS "post_videos" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "post_id" UUID NOT NULL,
+    "s3_key" TEXT NOT NULL,
+    "cdn_url" TEXT NOT NULL,
+    "thumbnail_url" TEXT,
+    "duration_sec" DOUBLE PRECISION,
+    "order" INTEGER NOT NULL,
+    "status" "PostImageStatus" NOT NULL DEFAULT 'pending_review',
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "post_videos_pkey" PRIMARY KEY ("id")
+);
+
 -- Indexes
 CREATE UNIQUE INDEX IF NOT EXISTS "profiles_username_key" ON "profiles"("username");
 CREATE UNIQUE INDEX IF NOT EXISTS "profiles_phone_number_key" ON "profiles"("phone_number");
 CREATE INDEX IF NOT EXISTS "follows_following_id_idx" ON "follows"("following_id");
 CREATE INDEX IF NOT EXISTS "posts_author_id_created_at_idx" ON "posts"("author_id", "created_at" DESC);
 CREATE INDEX IF NOT EXISTS "post_images_post_id_order_idx" ON "post_images"("post_id", "order");
+CREATE INDEX IF NOT EXISTS "post_videos_post_id_order_idx" ON "post_videos"("post_id", "order");
 CREATE INDEX IF NOT EXISTS "comments_post_id_created_at_idx" ON "comments"("post_id", "created_at" ASC);
 CREATE INDEX IF NOT EXISTS "messages_conversation_id_created_at_idx" ON "messages"("conversation_id", "created_at" DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS "push_tokens_user_id_platform_key" ON "push_tokens"("user_id", "platform");
@@ -193,6 +207,9 @@ ALTER TABLE "posts" ADD CONSTRAINT "posts_author_id_fkey" FOREIGN KEY ("author_i
 
 ALTER TABLE "post_images" DROP CONSTRAINT IF EXISTS "post_images_post_id_fkey";
 ALTER TABLE "post_images" ADD CONSTRAINT "post_images_post_id_fkey" FOREIGN KEY ("post_id") REFERENCES "posts"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE "post_videos" DROP CONSTRAINT IF EXISTS "post_videos_post_id_fkey";
+ALTER TABLE "post_videos" ADD CONSTRAINT "post_videos_post_id_fkey" FOREIGN KEY ("post_id") REFERENCES "posts"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 ALTER TABLE "likes" DROP CONSTRAINT IF EXISTS "likes_post_id_fkey";
 ALTER TABLE "likes" ADD CONSTRAINT "likes_post_id_fkey" FOREIGN KEY ("post_id") REFERENCES "posts"("id") ON DELETE CASCADE ON UPDATE CASCADE;

@@ -19,7 +19,7 @@ import {
 } from '@nestjs/swagger';
 import { PostsService } from './posts.service';
 import { CreatePostDto } from './dto/create-post.dto';
-import { UploadUrlDto } from './dto/upload-url.dto';
+import { UploadUrlDto, VideoUploadUrlDto } from './dto/upload-url.dto';
 import { FeedQueryDto } from './dto/feed-query.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -61,9 +61,17 @@ export class PostsController {
     return this.postsService.generateUploadUrl(dto.filename, dto.contentType);
   }
 
+  @Post('video-upload-url')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Generate a presigned Supabase Storage URL for video upload (max 200 MB)' })
+  @ApiOkResponse({ description: '{ uploadUrl, s3Key, cdnUrl }' })
+  getVideoUploadUrl(@Body() dto: VideoUploadUrlDto) {
+    return this.postsService.generateVideoUploadUrl(dto.filename, dto.contentType);
+  }
+
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Create a new post (text + up to 5 images)' })
+  @ApiOperation({ summary: 'Create a new post (text + up to 5 images + 1 video)' })
   @ApiCreatedResponse({ description: 'Post created — fanout enqueued, moderation async' })
   create(@CurrentUser() user: User, @Body() dto: CreatePostDto) {
     return this.postsService.create(user.id, dto);

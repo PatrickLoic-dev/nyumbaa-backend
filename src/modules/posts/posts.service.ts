@@ -70,11 +70,24 @@ export class PostsService implements OnModuleInit {
               })),
             }
           : undefined,
+        videos: dto.videos?.length
+          ? {
+              create: dto.videos.map((vid) => ({
+                s3Key: vid.s3Key,
+                cdnUrl: this.buildCdnUrl(vid.s3Key),
+                thumbnailUrl: vid.thumbnailS3Key ? this.buildCdnUrl(vid.thumbnailS3Key) : null,
+                durationSec: vid.durationSec ?? null,
+                order: vid.order,
+                status: PostImageStatus.pending_review,
+              })),
+            }
+          : undefined,
       },
       include: {
         author: { select: { id: true, displayName: true, avatarUrl: true } },
         mentions: { include: { mentionedUser: { select: { id: true, displayName: true } } } },
         images: { orderBy: { order: 'asc' } },
+        videos: { orderBy: { order: 'asc' } },
       },
     });
 
@@ -99,6 +112,10 @@ export class PostsService implements OnModuleInit {
     return this.uploadService.createPostImageUploadUrl(filename, contentType);
   }
 
+  async generateVideoUploadUrl(filename: string, contentType: string) {
+    return this.uploadService.createPostVideoUploadUrl(filename, contentType);
+  }
+
   async findFeed(requesterId: string, cursor?: string, limit = 15) {
     const take = limit + 1;
     const posts = await this.prisma.post.findMany({
@@ -112,6 +129,7 @@ export class PostsService implements OnModuleInit {
       include: {
         author: { select: { id: true, displayName: true, avatarUrl: true, username: true } },
         images: { orderBy: { order: 'asc' } },
+        videos: { orderBy: { order: 'asc' } },
         _count: { select: { comments: true } },
         likes: { where: { userId: requesterId }, select: { userId: true } },
       },
@@ -142,6 +160,7 @@ export class PostsService implements OnModuleInit {
       include: {
         author: { select: { id: true, displayName: true, avatarUrl: true, username: true } },
         images: { orderBy: { order: 'asc' } },
+        videos: { orderBy: { order: 'asc' } },
         _count: { select: { comments: true } },
         likes: { where: { userId: requesterId }, select: { userId: true } },
       },
@@ -178,6 +197,7 @@ export class PostsService implements OnModuleInit {
       include: {
         author: { select: { id: true, displayName: true, avatarUrl: true, username: true } },
         images: { orderBy: { order: 'asc' } },
+        videos: { orderBy: { order: 'asc' } },
         _count: { select: { comments: true } },
         likes: { where: { userId: requesterId }, select: { userId: true } },
       },

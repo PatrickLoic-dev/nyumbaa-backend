@@ -13,6 +13,7 @@ import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PostVisibility } from '@prisma/client';
 import { PostImageDto } from './post-image.dto';
+import { PostVideoDto } from './post-video.dto';
 
 export class CreatePostDto {
   @ApiPropertyOptional({ example: 'Bienvenue sur Nyumba\'a ! 🌍', maxLength: 1000 })
@@ -48,4 +49,16 @@ export class CreatePostDto {
   @ValidateNested({ each: true })
   @Type(() => PostImageDto)
   images?: PostImageDto[];
+
+  @ApiPropertyOptional({
+    type: [PostVideoDto],
+    description: 'Up to 1 video (s3Key from POST /posts/video-upload-url)',
+    maxItems: 1,
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(1, { message: JSON.stringify({ error: 'TOO_MANY_VIDEOS', max: 1 }) })
+  @ValidateNested({ each: true })
+  @Type(() => PostVideoDto)
+  videos?: PostVideoDto[];
 }

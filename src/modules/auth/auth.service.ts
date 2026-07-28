@@ -19,7 +19,7 @@ export class AuthService {
   ) {}
 
   /** Creates a Supabase auth user and a matching profile row. */
-  async register(dto: RegisterDto): Promise<AuthResponse> {
+  async register(dto: RegisterDto): Promise<AuthResponse | { emailConfirmationRequired: true }> {
     const { data, error } = await this.supabase.admin.auth.signUp({
       email: dto.email,
       password: dto.password,
@@ -32,16 +32,14 @@ export class AuthService {
       if (error.message.toLowerCase().includes('already registered')) {
         throw new ConflictException('Email already in use');
       }
-      // Never forward raw provider error messages to the client
       throw new InternalServerErrorException('Registration failed');
     }
 
-    if (!data.user || !data.session) {
+    if (!data.user) {
       throw new InternalServerErrorException('Registration failed');
     }
 
     // Upsert profile so it exists even if the Supabase trigger hasn't run yet
-    // Derive a display name from the email prefix if not provided
     const displayName = dto.displayName?.trim() || dto.email.split('@')[0];
 
     await this.prisma.profile.upsert({
@@ -54,6 +52,11 @@ export class AuthService {
         ...(dto.phoneNumber ? { phoneNumber: dto.phoneNumber } : {}),
       },
     });
+
+    // Supabase returns session=null when email confirmation is enabled
+    if (!data.session) {
+      return { emailConfirmationRequired: true };
+    }
 
     return toAuthResponse(data.user, data.session);
   }

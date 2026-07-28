@@ -62,6 +62,7 @@ describe('AuthService', () => {
         displayName: 'Test User',
       });
 
+      if ('emailConfirmationRequired' in result) throw new Error('Unexpected email confirmation path');
       expect(result.user).toEqual(mockUser);
       expect(result.tokens.accessToken).toBe('access-token');
       expect(mockPrismaService.profile.upsert).toHaveBeenCalledTimes(1);

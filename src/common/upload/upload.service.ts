@@ -63,6 +63,32 @@ export class UploadService {
     return { uploadUrl: data.signedUrl, s3Key, cdnUrl };
   }
 
+  async createAvatarUploadUrl(userId: string, contentType: string): Promise<PresignedUploadResult> {
+    if (!ALLOWED_MIME_TYPES.includes(contentType as AllowedMimeType)) {
+      throw new UnsupportedMediaTypeException({
+        error: 'UNSUPPORTED_FORMAT',
+        accepted: ['jpg', 'png', 'webp'],
+      });
+    }
+
+    const bucket = this.config.get<string>('storage.bucket')!;
+    const ext = this.mimeToExt(contentType as AllowedMimeType);
+    const s3Key = `avatars/${userId}/avatar.${ext}`;
+
+    const { data, error } = await this.supabase.admin.storage
+      .from(bucket)
+      .createSignedUploadUrl(s3Key, { upsert: true });
+
+    if (error || !data) {
+      throw new BadRequestException('Failed to generate avatar upload URL');
+    }
+
+    const supabaseUrl = this.config.get<string>('supabase.url')!;
+    const cdnUrl = `${supabaseUrl}/storage/v1/object/public/${bucket}/${s3Key}`;
+
+    return { uploadUrl: data.signedUrl, s3Key, cdnUrl };
+  }
+
   async deleteObject(s3Key: string): Promise<void> {
     const bucket = this.config.get<string>('storage.bucket')!;
     await this.supabase.admin.storage.from(bucket).remove([s3Key]);

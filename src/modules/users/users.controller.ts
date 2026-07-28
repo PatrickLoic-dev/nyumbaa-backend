@@ -16,12 +16,17 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { SendPhoneOtpDto, VerifyPhoneOtpDto } from './dto/phone-otp.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { User } from '@supabase/supabase-js';
+import { UploadService } from '../../common/upload/upload.service';
+import { UploadUrlDto } from '../posts/dto/upload-url.dto';
 
 @ApiTags('users')
 @ApiBearerAuth()
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly uploadService: UploadService,
+  ) {}
 
   @Get('me')
   @ApiOperation({ summary: 'Get current user profile' })
@@ -33,6 +38,13 @@ export class UsersController {
   @ApiOperation({ summary: 'Update current user profile' })
   updateMe(@CurrentUser() user: User, @Body() dto: UpdateProfileDto) {
     return this.usersService.updateMe(user.id, dto);
+  }
+
+  @Post('me/avatar-upload-url')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Get a presigned Supabase Storage URL to upload avatar' })
+  getAvatarUploadUrl(@CurrentUser() user: User, @Body() dto: Pick<UploadUrlDto, 'contentType'>) {
+    return this.uploadService.createAvatarUploadUrl(user.id, dto.contentType);
   }
 
   @Post('me/phone/send-otp')

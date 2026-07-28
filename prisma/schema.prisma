@@ -63,7 +63,7 @@ enum MemberRole {
 // ─── Models ─────────────────────────────────────────────────────────────────
 
 model Profile {
-  id            String      @id @default(uuid())
+  id            String      @id @db.Uuid
   displayName   String      @map("display_name")
   avatarUrl     String?     @map("avatar_url")
   language      AppLanguage @default(fr)
@@ -101,8 +101,8 @@ model Profile {
 }
 
 model Follow {
-  followerId  String   @map("follower_id")
-  followingId String   @map("following_id")
+  followerId  String   @map("follower_id") @db.Uuid
+  followingId String   @map("following_id") @db.Uuid
   createdAt   DateTime @default(now()) @map("created_at")
 
   follower  Profile @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
@@ -114,11 +114,11 @@ model Follow {
 }
 
 model Community {
-  id          String   @id @default(uuid())
+  id          String   @id @default(uuid()) @db.Uuid
   name        String   @db.VarChar(100)
   description String?  @db.VarChar(500)
   avatarUrl   String?  @map("avatar_url")
-  createdBy   String   @map("created_by")
+  createdBy   String   @map("created_by") @db.Uuid
   memberCount Int      @default(0) @map("member_count")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
@@ -130,8 +130,8 @@ model Community {
 }
 
 model CommunityMember {
-  communityId String   @map("community_id")
-  userId      String   @map("user_id")
+  communityId String   @map("community_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
   joinedAt    DateTime @default(now()) @map("joined_at")
 
   community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
@@ -142,8 +142,8 @@ model CommunityMember {
 }
 
 model Post {
-  id              String         @id @default(uuid())
-  authorId        String         @map("author_id")
+  id              String         @id @default(uuid()) @db.Uuid
+  authorId        String         @map("author_id") @db.Uuid
   content         String
   visibility      PostVisibility @default(public)
   status          PostStatus     @default(published)
@@ -163,8 +163,8 @@ model Post {
 }
 
 model PostImage {
-  id        String          @id @default(uuid())
-  postId    String          @map("post_id")
+  id        String          @id @default(uuid()) @db.Uuid
+  postId    String          @map("post_id") @db.Uuid
   s3Key     String          @map("s3_key")
   cdnUrl    String          @map("cdn_url")
   altText   String?         @map("alt_text") @db.VarChar(200)
@@ -179,8 +179,8 @@ model PostImage {
 }
 
 model Like {
-  postId    String   @map("post_id")
-  userId    String   @map("user_id")
+  postId    String   @map("post_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
   createdAt DateTime @default(now()) @map("created_at")
 
   post Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
@@ -191,9 +191,9 @@ model Like {
 }
 
 model Comment {
-  id        String        @id @default(uuid())
-  postId    String        @map("post_id")
-  authorId  String        @map("author_id")
+  id        String        @id @default(uuid()) @db.Uuid
+  postId    String        @map("post_id") @db.Uuid
+  authorId  String        @map("author_id") @db.Uuid
   content   String        @db.VarChar(500)
   status    CommentStatus @default(published)
   createdAt DateTime      @default(now()) @map("created_at")
@@ -207,8 +207,8 @@ model Comment {
 }
 
 model PostMention {
-  postId          String @map("post_id")
-  mentionedUserId String @map("mentioned_user_id")
+  postId          String @map("post_id") @db.Uuid
+  mentionedUserId String @map("mentioned_user_id") @db.Uuid
 
   post          Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
   mentionedUser Profile @relation(fields: [mentionedUserId], references: [id], onDelete: Cascade)
@@ -218,10 +218,10 @@ model PostMention {
 }
 
 model Conversation {
-  id        String           @id @default(uuid())
+  id        String           @id @default(uuid()) @db.Uuid
   type      ConversationType @default(private)
   name      String?
-  createdBy String           @map("created_by")
+  createdBy String           @map("created_by") @db.Uuid
   createdAt DateTime         @default(now()) @map("created_at")
   updatedAt DateTime         @updatedAt @map("updated_at")
 
@@ -232,8 +232,8 @@ model Conversation {
 }
 
 model ConversationMember {
-  conversationId String     @map("conversation_id")
-  userId         String     @map("user_id")
+  conversationId String     @map("conversation_id") @db.Uuid
+  userId         String     @map("user_id") @db.Uuid
   joinedAt       DateTime   @default(now()) @map("joined_at")
   role           MemberRole @default(member)
 
@@ -245,9 +245,9 @@ model ConversationMember {
 }
 
 model Message {
-  id             String   @id @default(uuid())
-  conversationId String   @map("conversation_id")
-  senderId       String   @map("sender_id")
+  id             String   @id @default(uuid()) @db.Uuid
+  conversationId String   @map("conversation_id") @db.Uuid
+  senderId       String   @map("sender_id") @db.Uuid
   content        String
   lang           String   @default("fr")
   createdAt      DateTime @default(now()) @map("created_at")
@@ -263,8 +263,8 @@ model Message {
 }
 
 model MessageStatus_ {
-  messageId String        @map("message_id")
-  userId    String        @map("user_id")
+  messageId String        @map("message_id") @db.Uuid
+  userId    String        @map("user_id") @db.Uuid
   status    MessageStatus @default(sent)
   updatedAt DateTime      @updatedAt @map("updated_at")
 
@@ -276,7 +276,7 @@ model MessageStatus_ {
 }
 
 model TranslationCache {
-  messageId      String @map("message_id")
+  messageId      String @map("message_id") @db.Uuid
   targetLang     String @map("target_lang")
   translatedText String @map("translated_text")
 
@@ -287,8 +287,8 @@ model TranslationCache {
 }
 
 model PushToken {
-  id        String   @id @default(uuid())
-  userId    String   @map("user_id")
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
   expoToken String   @map("expo_token")
   platform  String
   updatedAt DateTime @updatedAt @map("updated_at")

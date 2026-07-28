@@ -3,6 +3,7 @@ import {
   UnauthorizedException,
   ConflictException,
   InternalServerErrorException,
+  HttpException,
   Logger,
 } from '@nestjs/common';
 import { SupabaseService } from '../../common/supabase/supabase.service';
@@ -23,32 +24,32 @@ export class AuthService {
 
   /** Creates a Supabase auth user and a matching profile row. */
   async register(dto: RegisterDto): Promise<AuthResponse | { emailConfirmationRequired: true }> {
-    this.logger.log(`register: calling supabase.signUp for ${dto.email}`);
-
-    const { data, error } = await this.supabase.admin.auth.signUp({
-      email: dto.email,
-      password: dto.password,
-      options: {
-        data: { display_name: dto.displayName },
-      },
-    });
-
-    this.logger.log(`register: supabase.signUp done — user=${!!data?.user} session=${!!data?.session} error=${error?.message ?? 'none'}`);
-
-    if (error) {
-      if (error.message.toLowerCase().includes('already registered')) {
-        throw new ConflictException('Email already in use');
-      }
-      throw new InternalServerErrorException('Registration failed');
-    }
-
-    if (!data.user) {
-      throw new InternalServerErrorException('Registration failed');
-    }
-
-    const displayName = dto.displayName?.trim() || dto.email.split('@')[0];
-
     try {
+      this.logger.log(`register: step=signUp email=${dto.email}`);
+
+      const { data, error } = await this.supabase.admin.auth.signUp({
+        email: dto.email,
+        password: dto.password,
+        options: { data: { display_name: dto.displayName } },
+      });
+
+      this.logger.log(`register: step=signUpDone user=${!!data?.user} session=${!!data?.session} supabaseError=${error?.message ?? 'none'}`);
+
+      if (error) {
+        if (error.message.toLowerCase().includes('already registered')) {
+          throw new ConflictException('Email already in use');
+        }
+        throw new InternalServerErrorException(`Supabase signUp error: ${error.message}`);
+      }
+
+      if (!data.user) {
+        throw new InternalServerErrorException('Supabase returned no user');
+      }
+
+      this.logger.log(`register: step=upsertProfile userId=${data.user.id}`);
+
+      const displayName = dto.displayName?.trim() || dto.email.split('@')[0];
+
       await this.prisma.profile.upsert({
         where: { id: data.user.id },
         update: {},
@@ -59,18 +60,22 @@ export class AuthService {
           ...(dto.phoneNumber ? { phoneNumber: dto.phoneNumber } : {}),
         },
       });
-      this.logger.log(`register: profile upsert ok for ${data.user.id}`);
-    } catch (prismaErr) {
-      this.logger.error(`register: profile upsert FAILED`, prismaErr);
-      throw new InternalServerErrorException('Profile creation failed');
-    }
 
-    // Supabase returns session=null when email confirmation is enabled
-    if (!data.session) {
-      return { emailConfirmationRequired: true };
-    }
+      this.logger.log(`register: step=upsertDone userId=${data.user.id}`);
 
-    return toAuthResponse(data.user, data.session);
+      if (!data.session) {
+        this.logger.log(`register: step=emailConfirmationRequired`);
+        return { emailConfirmationRequired: true };
+      }
+
+      return toAuthResponse(data.user, data.session);
+    } catch (err) {
+      // Re-throw NestJS HTTP exceptions (ConflictException, our explicit throws above)
+      if (err instanceof HttpException) throw err;
+      // Log and wrap any unexpected error (Prisma, Supabase client bug, etc.)
+      this.logger.error(`register: unexpected error type=${(err as Error)?.constructor?.name} msg=${(err as Error)?.message}`, (err as Error)?.stack);
+      throw new InternalServerErrorException(`Registration error: ${(err as Error)?.message ?? 'unknown'}`);
+    }
   }
 
   async login(dto: LoginDto): Promise<AuthResponse> {

@@ -3,6 +3,7 @@ import {
   UnauthorizedException,
   ConflictException,
   InternalServerErrorException,
+  Logger,
 } from '@nestjs/common';
 import { SupabaseService } from '../../common/supabase/supabase.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
@@ -13,6 +14,8 @@ import { AuthResponse, toAuthResponse } from './interfaces/auth-response.interfa
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly supabase: SupabaseService,
     private readonly prisma: PrismaService,
@@ -20,6 +23,8 @@ export class AuthService {
 
   /** Creates a Supabase auth user and a matching profile row. */
   async register(dto: RegisterDto): Promise<AuthResponse | { emailConfirmationRequired: true }> {
+    this.logger.log(`register: calling supabase.signUp for ${dto.email}`);
+
     const { data, error } = await this.supabase.admin.auth.signUp({
       email: dto.email,
       password: dto.password,
@@ -27,6 +32,8 @@ export class AuthService {
         data: { display_name: dto.displayName },
       },
     });
+
+    this.logger.log(`register: supabase.signUp done — user=${!!data?.user} session=${!!data?.session} error=${error?.message ?? 'none'}`);
 
     if (error) {
       if (error.message.toLowerCase().includes('already registered')) {
@@ -39,19 +46,24 @@ export class AuthService {
       throw new InternalServerErrorException('Registration failed');
     }
 
-    // Upsert profile so it exists even if the Supabase trigger hasn't run yet
     const displayName = dto.displayName?.trim() || dto.email.split('@')[0];
 
-    await this.prisma.profile.upsert({
-      where: { id: data.user.id },
-      update: {},
-      create: {
-        id: data.user.id,
-        displayName,
-        language: 'fr',
-        ...(dto.phoneNumber ? { phoneNumber: dto.phoneNumber } : {}),
-      },
-    });
+    try {
+      await this.prisma.profile.upsert({
+        where: { id: data.user.id },
+        update: {},
+        create: {
+          id: data.user.id,
+          displayName,
+          language: 'fr',
+          ...(dto.phoneNumber ? { phoneNumber: dto.phoneNumber } : {}),
+        },
+      });
+      this.logger.log(`register: profile upsert ok for ${data.user.id}`);
+    } catch (prismaErr) {
+      this.logger.error(`register: profile upsert FAILED`, prismaErr);
+      throw new InternalServerErrorException('Profile creation failed');
+    }
 
     // Supabase returns session=null when email confirmation is enabled
     if (!data.session) {

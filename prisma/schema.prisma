@@ -91,6 +91,7 @@ model Profile {
   posts               Post[]
   mentionedIn         PostMention[]
   likes               Like[]
+  reposts             Repost[]
   comments            Comment[]
   communityMemberships CommunityMember[]
   createdCommunities  Community[]
@@ -148,6 +149,7 @@ model Post {
   visibility      PostVisibility @default(public)
   status          PostStatus     @default(published)
   likesCount      Int            @default(0) @map("likes_count")
+  repostsCount    Int            @default(0) @map("reposts_count")
   commentsEnabled Boolean        @default(true) @map("comments_enabled")
   createdAt       DateTime       @default(now()) @map("created_at")
   updatedAt       DateTime       @updatedAt @map("updated_at")
@@ -157,6 +159,7 @@ model Post {
   images   PostImage[]
   videos   PostVideo[]
   likes    Like[]
+  reposts  Repost[]
   comments Comment[]
 
   @@index([authorId, createdAt(sort: Desc)])
@@ -222,6 +225,19 @@ model Comment {
 
   @@index([postId, createdAt(sort: Asc)])
   @@map("comments")
+}
+
+model Repost {
+  postId    String   @map("post_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  post Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("reposts")
 }
 
 model PostMention {

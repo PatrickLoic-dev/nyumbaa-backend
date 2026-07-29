@@ -133,15 +133,41 @@ export class PostsService implements OnModuleInit {
         videos: { orderBy: { order: 'asc' } },
         _count: { select: { comments: true } },
         likes: { where: { userId: requesterId }, select: { userId: true } },
+        reposts: { where: { userId: requesterId }, select: { userId: true } },
       },
     });
 
     const hasMore = posts.length > limit;
-    const data = (hasMore ? posts.slice(0, limit) : posts).map((p) => ({
+    const page = hasMore ? posts.slice(0, limit) : posts;
+
+    // Enrich with repostedBy: if any followed user reposted this post (≠ requester)
+    const postIds = page.map((p) => p.id);
+    const followingRows = await this.prisma.follow.findMany({
+      where: { followerId: requesterId },
+      select: { followingId: true },
+    });
+    const followingIds = followingRows.map((r) => r.followingId);
+
+    let repostMap = new Map<string, { id: string; displayName: string; avatarUrl: string | null }>();
+    if (followingIds.length > 0 && postIds.length > 0) {
+      const friendReposts = await this.prisma.repost.findMany({
+        where: { postId: { in: postIds }, userId: { in: followingIds } },
+        include: { user: { select: { id: true, displayName: true, avatarUrl: true } } },
+        orderBy: { createdAt: 'desc' },
+      });
+      for (const r of friendReposts) {
+        if (!repostMap.has(r.postId)) repostMap.set(r.postId, r.user);
+      }
+    }
+
+    const data = page.map((p) => ({
       ...p,
       likedByMe: p.likes.length > 0,
+      repostedByMe: p.reposts.length > 0,
       commentsCount: p._count.comments,
+      repostedBy: repostMap.get(p.id) ?? null,
       likes: undefined,
+      reposts: undefined,
       _count: undefined,
     }));
 
@@ -164,14 +190,18 @@ export class PostsService implements OnModuleInit {
         videos: { orderBy: { order: 'asc' } },
         _count: { select: { comments: true } },
         likes: { where: { userId: requesterId }, select: { userId: true } },
+        reposts: { where: { userId: requesterId }, select: { userId: true } },
       },
     });
 
     return posts.map((p) => ({
       ...p,
       likedByMe: p.likes.length > 0,
+      repostedByMe: p.reposts.length > 0,
+      repostedBy: null,
       commentsCount: p._count.comments,
       likes: undefined,
+      reposts: undefined,
       _count: undefined,
     }));
   }
@@ -207,6 +237,7 @@ export class PostsService implements OnModuleInit {
         videos: { orderBy: { order: 'asc' } },
         _count: { select: { comments: true } },
         likes: { where: { userId: requesterId }, select: { userId: true } },
+        reposts: { where: { userId: requesterId }, select: { userId: true } },
       },
     });
 
@@ -219,7 +250,10 @@ export class PostsService implements OnModuleInit {
       ...post,
       commentsCount: post._count.comments,
       likedByMe: post.likes.length > 0,
+      repostedByMe: post.reposts.length > 0,
+      repostedBy: null,
       likes: undefined,
+      reposts: undefined,
       _count: undefined,
     };
   }

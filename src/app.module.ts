@@ -17,6 +17,7 @@ import { MailModule } from './modules/mail/mail.module';
 import { PostsModule } from './modules/posts/posts.module';
 import { LikesModule } from './modules/likes/likes.module';
 import { CommentsModule } from './modules/comments/comments.module';
+import { RepostsModule } from './modules/reposts/reposts.module';
 import { CommunitiesModule } from './modules/communities/communities.module';
 import { SearchModule } from './modules/search/search.module';
 
@@ -79,6 +80,7 @@ import { SearchModule } from './modules/search/search.module';
     PostsModule,
     LikesModule,
     CommentsModule,
+    RepostsModule,
     CommunitiesModule,
     SearchModule,
   ],

@@ -44,6 +44,7 @@ export class MessagesService {
       include: {
         sender: { select: { id: true, displayName: true, avatarUrl: true, username: true } },
         statuses: { select: { userId: true, status: true } },
+        reactions: { select: { userId: true, emoji: true } },
         translationsCache: true,
         replyTo: {
           select: {
@@ -81,7 +82,11 @@ export class MessagesService {
     if (type === MessageType.text && !content.trim()) {
       throw new BadRequestException('Text message must have content');
     }
-    if ((type === MessageType.voice || type === MessageType.image || type === MessageType.video) && !dto.mediaUrl) {
+    if (
+      (type === MessageType.voice || type === MessageType.image ||
+       type === MessageType.video || type === MessageType.document) &&
+      !dto.mediaUrl
+    ) {
       throw new BadRequestException(`${type} message must have a mediaUrl`);
     }
 
@@ -94,6 +99,8 @@ export class MessagesService {
         type,
         content,
         mediaUrl: dto.mediaUrl,
+        mediaName: dto.mediaName,
+        mediaSize: dto.mediaSize,
         mediaDuration: dto.mediaDuration,
         replyToId: dto.replyToId,
         lang: dto.lang ?? 'fr',
@@ -117,10 +124,14 @@ export class MessagesService {
       type: message.type,
       content: message.content,
       mediaUrl: message.mediaUrl,
+      mediaName: (message as any).mediaName,
+      mediaSize: (message as any).mediaSize,
       mediaDuration: message.mediaDuration,
       replyTo: message.replyTo,
       replyToId: message.replyToId,
       statuses: [],
+      reactions: [],
+      isPinned: false,
       isDeleted: false,
       createdAt: message.createdAt,
     };
@@ -140,6 +151,8 @@ export class MessagesService {
         ? '📷 Photo'
         : type === MessageType.video
         ? '🎥 Vidéo'
+        : type === MessageType.document
+        ? `📎 ${dto.mediaName ?? 'Document'}`
         : content.slice(0, PREVIEW_LENGTH);
 
     this.notifications
@@ -211,6 +224,66 @@ export class MessagesService {
     );
 
     return results;
+  }
+
+  // ── Pin ─────────────────────────────────────────────────────────────────────
+
+  async togglePin(messageId: string, userId: string) {
+    const message = await this.prisma.message.findUnique({ where: { id: messageId } });
+    if (!message) throw new NotFoundException('Message not found');
+    await this.conversations.assertMember(message.conversationId, userId);
+    const updated = await this.prisma.message.update({
+      where: { id: messageId },
+      data: { isPinned: !message.isPinned },
+    });
+    this.realtime.server
+      .to(message.conversationId)
+      .emit('message:pinned', { messageId, isPinned: updated.isPinned, conversationId: message.conversationId });
+    return { messageId, isPinned: updated.isPinned };
+  }
+
+  async getPinnedMessages(conversationId: string, userId: string) {
+    await this.conversations.assertMember(conversationId, userId);
+    return this.prisma.message.findMany({
+      where: { conversationId, isPinned: true, deletedAt: null },
+      orderBy: { createdAt: 'desc' },
+      include: { sender: { select: { id: true, displayName: true, avatarUrl: true } } },
+    });
+  }
+
+  // ── Reactions ────────────────────────────────────────────────────────────────
+
+  async addReaction(messageId: string, userId: string, emoji: string) {
+    const message = await this.prisma.message.findUnique({ where: { id: messageId } });
+    if (!message) throw new NotFoundException('Message not found');
+    await this.conversations.assertMember(message.conversationId, userId);
+    await this.prisma.messageReaction.upsert({
+      where: { messageId_userId_emoji: { messageId, userId, emoji } },
+      create: { messageId, userId, emoji },
+      update: {},
+    });
+    const reactions = await this.prisma.messageReaction.findMany({
+      where: { messageId },
+      select: { userId: true, emoji: true },
+    });
+    this.realtime.server
+      .to(message.conversationId)
+      .emit('message:reaction', { messageId, reactions, conversationId: message.conversationId });
+    return { messageId, reactions };
+  }
+
+  async removeReaction(messageId: string, userId: string, emoji: string) {
+    const message = await this.prisma.message.findUnique({ where: { id: messageId } });
+    if (!message) throw new NotFoundException('Message not found');
+    await this.prisma.messageReaction.deleteMany({ where: { messageId, userId, emoji } });
+    const reactions = await this.prisma.messageReaction.findMany({
+      where: { messageId },
+      select: { userId: true, emoji: true },
+    });
+    this.realtime.server
+      .to(message.conversationId)
+      .emit('message:reaction', { messageId, reactions, conversationId: message.conversationId });
+    return { messageId, reactions };
   }
 
   // ── Private helpers ─────────────────────────────────────────────────────────

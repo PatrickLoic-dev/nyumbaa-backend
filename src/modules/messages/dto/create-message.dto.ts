@@ -20,6 +20,17 @@ export class CreateMessageDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @IsString()
+  mediaName?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  mediaSize?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsNumber()
   @Min(0)
   mediaDuration?: number;

@@ -60,6 +60,7 @@ enum MessageType {
   image
   video
   forwarded
+  document
 }
 
 enum MemberRole {
@@ -112,6 +113,7 @@ model Profile {
   sentMessages        Message[]
   conversationMembers ConversationMember[]
   messageStatuses     MessageStatus_[]
+  messageReactions    MessageReaction[]
   pushTokens          PushToken[]
   posts               Post[]
   mentionedIn         PostMention[]
@@ -296,6 +298,7 @@ model Conversation {
   id        String           @id @default(uuid()) @db.Uuid
   type      ConversationType @default(private)
   name      String?
+  avatarUrl String?          @map("avatar_url")
   createdBy String           @map("created_by") @db.Uuid
   createdAt DateTime         @default(now()) @map("created_at")
   updatedAt DateTime         @updatedAt @map("updated_at")
@@ -311,6 +314,9 @@ model ConversationMember {
   userId         String     @map("user_id") @db.Uuid
   joinedAt       DateTime   @default(now()) @map("joined_at")
   role           MemberRole @default(member)
+  isFavorite     Boolean    @default(false) @map("is_favorite")
+  isPinned       Boolean    @default(false) @map("is_pinned")
+  wallpaper      String?
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   user         Profile      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -326,9 +332,12 @@ model Message {
   type              MessageType @default(text)
   content           String      @default("")
   mediaUrl          String?     @map("media_url")
+  mediaName         String?     @map("media_name")
+  mediaSize         Int?        @map("media_size")
   mediaDuration     Float?      @map("media_duration")
   replyToId         String?     @map("reply_to_id") @db.Uuid
   forwardedFromId   String?     @map("forwarded_from_id") @db.Uuid
+  isPinned          Boolean     @default(false) @map("is_pinned")
   deletedAt         DateTime?   @map("deleted_at")
   lang              String      @default("fr")
   createdAt         DateTime    @default(now()) @map("created_at")
@@ -339,10 +348,25 @@ model Message {
   replyTo           Message?           @relation("MessageReplies", fields: [replyToId], references: [id])
   replies           Message[]          @relation("MessageReplies")
   statuses          MessageStatus_[]
+  reactions         MessageReaction[]
   translationsCache TranslationCache[]
 
   @@index([conversationId, createdAt(sort: Desc)])
   @@map("messages")
+}
+
+model MessageReaction {
+  messageId String   @map("message_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  emoji     String   @db.VarChar(10)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([messageId, userId, emoji])
+  @@index([messageId])
+  @@map("message_reactions")
 }
 
 model MessageStatus_ {

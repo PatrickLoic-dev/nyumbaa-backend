@@ -54,6 +54,14 @@ enum MessageStatus {
   read
 }
 
+enum MessageType {
+  text
+  voice
+  image
+  video
+  forwarded
+}
+
 enum MemberRole {
   admin
   moderator
@@ -312,16 +320,24 @@ model ConversationMember {
 }
 
 model Message {
-  id             String   @id @default(uuid()) @db.Uuid
-  conversationId String   @map("conversation_id") @db.Uuid
-  senderId       String   @map("sender_id") @db.Uuid
-  content        String
-  lang           String   @default("fr")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  id                String      @id @default(uuid()) @db.Uuid
+  conversationId    String      @map("conversation_id") @db.Uuid
+  senderId          String      @map("sender_id") @db.Uuid
+  type              MessageType @default(text)
+  content           String      @default("")
+  mediaUrl          String?     @map("media_url")
+  mediaDuration     Float?      @map("media_duration")
+  replyToId         String?     @map("reply_to_id") @db.Uuid
+  forwardedFromId   String?     @map("forwarded_from_id") @db.Uuid
+  deletedAt         DateTime?   @map("deleted_at")
+  lang              String      @default("fr")
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
 
   conversation      Conversation       @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender            Profile            @relation(fields: [senderId], references: [id])
+  replyTo           Message?           @relation("MessageReplies", fields: [replyToId], references: [id])
+  replies           Message[]          @relation("MessageReplies")
   statuses          MessageStatus_[]
   translationsCache TranslationCache[]
 

@@ -6,7 +6,7 @@ describe('RealtimeGateway', () => {
   const mockTo = jest.fn().mockReturnValue({ emit: mockEmit });
 
   beforeEach(() => {
-    gateway = new RealtimeGateway();
+    gateway = new RealtimeGateway({ message: { findUnique: jest.fn(), findMany: jest.fn() }, messageStatus_: { upsert: jest.fn() } } as any);
     gateway.server = { to: mockTo } as any;
     jest.clearAllMocks();
   });

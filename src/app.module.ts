@@ -20,6 +20,7 @@ import { CommentsModule } from './modules/comments/comments.module';
 import { RepostsModule } from './modules/reposts/reposts.module';
 import { CommunitiesModule } from './modules/communities/communities.module';
 import { SearchModule } from './modules/search/search.module';
+import { CallsModule } from './modules/calls/calls.module';
 
 @Module({
   imports: [
@@ -83,6 +84,7 @@ import { SearchModule } from './modules/search/search.module';
     RepostsModule,
     CommunitiesModule,
     SearchModule,
+    CallsModule,
   ],
 })
 export class AppModule {}

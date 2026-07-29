@@ -16,6 +16,23 @@ export class UsersService {
     private readonly supabase: SupabaseService,
   ) {}
 
+  async search(q: string, requesterId: string) {
+    if (!q || q.trim().length < 1) return [];
+    const term = q.trim().toLowerCase();
+    const profiles = await this.prisma.profile.findMany({
+      where: {
+        id: { not: requesterId },
+        OR: [
+          { username: { contains: term, mode: 'insensitive' } },
+          { displayName: { contains: term, mode: 'insensitive' } },
+        ],
+      },
+      select: { id: true, username: true, displayName: true, avatarUrl: true },
+      take: 8,
+    });
+    return profiles;
+  }
+
   async findById(id: string, requesterId?: string) {
     const profile = await this.prisma.profile.findUnique({ where: { id } });
     if (!profile) throw new NotFoundException('User not found');

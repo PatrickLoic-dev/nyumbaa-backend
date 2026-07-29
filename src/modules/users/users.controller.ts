@@ -5,6 +5,7 @@ import {
   Post,
   Delete,
   Param,
+  Query,
   Body,
   HttpCode,
   HttpStatus,
@@ -27,6 +28,12 @@ export class UsersController {
     private readonly usersService: UsersService,
     private readonly uploadService: UploadService,
   ) {}
+
+  @Get('search')
+  @ApiOperation({ summary: 'Search users by username or display name' })
+  search(@Query('q') q: string, @CurrentUser() user: User) {
+    return this.usersService.search(q ?? '', user.id);
+  }
 
   @Get('me')
   @ApiOperation({ summary: 'Get current user profile' })

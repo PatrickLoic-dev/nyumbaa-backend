@@ -8,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { CommentStatus, PostStatus } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { CursorCommentsDto } from './dto/cursor-comments.dto';
 
@@ -20,6 +21,7 @@ export class CommentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly realtime: RealtimeGateway,
   ) {}
 
   async create(postId: string, authorId: string, dto: CreateCommentDto) {
@@ -64,6 +66,12 @@ export class CommentsService {
     this.moderateAsync(comment.id, dto.content, authorId).catch((err) =>
       this.logger.error(`Comment moderation error for ${comment.id}: ${err.message}`),
     );
+
+    // Broadcast updated comment count (fire-and-forget)
+    this.prisma.comment
+      .count({ where: { postId, status: CommentStatus.published } })
+      .then((commentsCount) => this.realtime.emitPostUpdated(postId, { commentsCount }))
+      .catch(() => {});
 
     return comment;
   }

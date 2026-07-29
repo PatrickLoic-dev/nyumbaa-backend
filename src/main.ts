@@ -25,6 +25,8 @@ async function bootstrap() {
   }
 
   app.use(helmet());
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  app.use(require('compression')());
 
   // Limit request body to 1 MB to mitigate request flooding
   app.use(require('express').json({ limit: '1mb' }));

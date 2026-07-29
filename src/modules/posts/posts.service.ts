@@ -25,6 +25,7 @@ export interface FanoutJobData {
 export class PostsService implements OnModuleInit {
   private readonly logger = new Logger(PostsService.name);
   private fanoutQueue: Queue | null = null;
+  private topicsCache: { data: { label: string; count: number }[]; expiresAt: number } | null = null;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -176,19 +177,25 @@ export class PostsService implements OnModuleInit {
   }
 
   async findTrendingTopics() {
-    const profiles = await this.prisma.profile.findMany({
-      select: { interests: true },
-    });
+    const now = Date.now();
+    if (this.topicsCache && now < this.topicsCache.expiresAt) {
+      return this.topicsCache.data;
+    }
+
+    const profiles = await this.prisma.profile.findMany({ select: { interests: true } });
     const counts: Record<string, number> = {};
     for (const p of profiles) {
       for (const interest of p.interests) {
         counts[interest] = (counts[interest] ?? 0) + 1;
       }
     }
-    return Object.entries(counts)
+    const data = Object.entries(counts)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 20)
       .map(([label, count]) => ({ label, count }));
+
+    this.topicsCache = { data, expiresAt: now + 5 * 60 * 1000 }; // 5-min TTL
+    return data;
   }
 
   async findOneForUser(postId: string, requesterId: string) {

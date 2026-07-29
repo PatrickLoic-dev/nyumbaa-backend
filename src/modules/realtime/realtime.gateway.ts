@@ -61,6 +61,22 @@ export class RealtimeGateway
     client.to(data.conversationId).emit('read-receipt', data);
   }
 
+  @SubscribeMessage('subscribe-post')
+  handleSubscribePost(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() postId: string,
+  ) {
+    client.join(`post:${postId}`);
+  }
+
+  @SubscribeMessage('unsubscribe-post')
+  handleUnsubscribePost(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() postId: string,
+  ) {
+    client.leave(`post:${postId}`);
+  }
+
   emitMessage(conversationId: string, message: object) {
     this.server.to(conversationId).emit('message:new', message);
   }
@@ -70,5 +86,9 @@ export class RealtimeGateway
     payload: { messageId: string; lang: string; translatedText: string },
   ) {
     this.server.to(conversationId).emit('message:translated', payload);
+  }
+
+  emitPostUpdated(postId: string, payload: { likesCount?: number; commentsCount?: number }) {
+    this.server.to(`post:${postId}`).emit('post:updated', { postId, ...payload });
   }
 }

@@ -4,6 +4,7 @@ import { Queue } from 'bullmq';
 import { PostStatus } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 import {
   LIKES_NOTIFY_QUEUE,
   LIKES_SYNC_QUEUE,
@@ -26,6 +27,7 @@ export class LikesService implements OnModuleDestroy {
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
     private readonly config: ConfigService,
+    private readonly realtime: RealtimeGateway,
   ) {
     // Sync cron via plain setInterval — no Redis dependency
     this.syncIntervalId = setInterval(() => {
@@ -44,12 +46,13 @@ export class LikesService implements OnModuleDestroy {
   async like(postId: string, userId: string) {
     const post = await this.assertPost(postId);
 
-    // INSERT ... ON CONFLICT DO NOTHING — guaranteed idempotence
-    await this.prisma.$executeRaw`
-      INSERT INTO likes (post_id, user_id, created_at)
-      VALUES (${postId}, ${userId}, NOW())
-      ON CONFLICT (post_id, user_id) DO NOTHING
-    `;
+    // Upsert via Prisma ORM — catches P2002 unique violation gracefully
+    try {
+      await this.prisma.like.create({ data: { postId, userId } });
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code;
+      if (code !== 'P2002') throw err; // already liked — idempotent, ignore
+    }
 
     // Atomic Redis INCR — fallback to SQL count if Redis unavailable
     const redisKey = LIKES_REDIS_KEY(postId);
@@ -64,6 +67,7 @@ export class LikesService implements OnModuleDestroy {
       await this.enqueueNotification(postId, post.authorId, likesCount);
     }
 
+    this.realtime.emitPostUpdated(postId, { likesCount });
     return { postId, liked: true, likesCount };
   }
 
@@ -79,6 +83,7 @@ export class LikesService implements OnModuleDestroy {
       likesCount = await this.getLikesCountFromSql(postId);
     }
 
+    this.realtime.emitPostUpdated(postId, { likesCount });
     return { postId, liked: false, likesCount };
   }
 

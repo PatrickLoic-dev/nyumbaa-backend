@@ -47,21 +47,25 @@ export class SearchService {
   }
 
   async searchCommunities(q: string, userId: string, limit = 20) {
-    const communities = await this.prisma.community.findMany({
-      where: {
-        OR: [
-          { name: { contains: q, mode: 'insensitive' } },
-          { description: { contains: q, mode: 'insensitive' } },
-        ],
-      },
-      include: { members: { where: { userId }, select: { userId: true } } },
-      take: limit,
-    });
-    return communities.map((c) => ({
-      ...c,
-      joinedByMe: c.members.length > 0,
-      members: undefined,
-    }));
+    try {
+      const communities = await this.prisma.community.findMany({
+        where: {
+          OR: [
+            { name: { contains: q, mode: 'insensitive' } },
+            { description: { contains: q, mode: 'insensitive' } },
+          ],
+        },
+        include: { members: { where: { userId }, select: { userId: true } } },
+        take: limit,
+      });
+      return communities.map((c) => ({
+        ...c,
+        joinedByMe: c.members.length > 0,
+        members: undefined,
+      }));
+    } catch {
+      return [];
+    }
   }
 
   async searchUsers(q: string, requesterId: string, limit = 20) {

@@ -212,19 +212,48 @@ export class PostsService implements OnModuleInit {
       return this.topicsCache.data;
     }
 
-    const profiles = await this.prisma.profile.findMany({ select: { interests: true } });
-    const counts: Record<string, number> = {};
-    for (const p of profiles) {
-      for (const interest of p.interests) {
-        counts[interest] = (counts[interest] ?? 0) + 1;
+    const since = new Date(now - 24 * 60 * 60 * 1000);
+    const posts = await this.prisma.post.findMany({
+      where: { status: 'published', createdAt: { gte: since } },
+      select: {
+        content: true,
+        authorId: true,
+        likesCount: true,
+        createdAt: true,
+        _count: { select: { comments: true } },
+      },
+    });
+
+    // Extract hashtags and accumulate per-tag stats
+    const tagStats: Record<string, { postCount: number; uniqueAuthors: Set<string>; engagement: number; firstSeenMs: number }> = {};
+    const hashtagRe = /#([\wÀ-ɏͰ-ϿЀ-ӿ]+)/g;
+
+    for (const post of posts) {
+      const matches = [...post.content.matchAll(hashtagRe)].map((m) => m[1].toLowerCase());
+      const uniqueTags = [...new Set(matches)];
+      for (const tag of uniqueTags) {
+        if (!tagStats[tag]) {
+          tagStats[tag] = { postCount: 0, uniqueAuthors: new Set(), engagement: 0, firstSeenMs: post.createdAt.getTime() };
+        }
+        const s = tagStats[tag];
+        s.postCount += 1;
+        s.uniqueAuthors.add(post.authorId);
+        s.engagement += post.likesCount + post._count.comments * 2;
+        if (post.createdAt.getTime() < s.firstSeenMs) s.firstSeenMs = post.createdAt.getTime();
       }
     }
-    const data = Object.entries(counts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 20)
-      .map(([label, count]) => ({ label, count }));
 
-    this.topicsCache = { data, expiresAt: now + 5 * 60 * 1000 }; // 5-min TTL
+    const data = Object.entries(tagStats)
+      .map(([label, s]) => {
+        const hoursSinceFirst = (now - s.firstSeenMs) / (1000 * 60 * 60);
+        const score = (s.uniqueAuthors.size * 2 + s.postCount + s.engagement) / Math.pow(hoursSinceFirst + 2, 1.8);
+        return { label: `#${label}`, count: s.postCount, score };
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 20)
+      .map(({ label, count }) => ({ label, count }));
+
+    this.topicsCache = { data, expiresAt: now + 5 * 60 * 1000 };
     return data;
   }
 

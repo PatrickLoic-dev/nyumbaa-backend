@@ -8,6 +8,7 @@ import {
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { SupabaseService } from '../../common/supabase/supabase.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { UpdatePrivacyDto } from './dto/update-privacy.dto';
 
 @Injectable()
 export class UsersService {
@@ -126,6 +127,46 @@ export class UsersService {
       commentsCount: p._count.comments,
       likedByMe: likedSet.has(p.id),
     }));
+  }
+
+  async updatePrivacy(userId: string, dto: UpdatePrivacyDto) {
+    return this.prisma.profile.update({ where: { id: userId }, data: dto });
+  }
+
+  async getBlockedUsers(userId: string) {
+    const rows = await this.prisma.blockedUser.findMany({
+      where: { blockerId: userId },
+      include: { blocked: { select: { id: true, displayName: true, username: true, avatarUrl: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+    return rows.map((r) => r.blocked);
+  }
+
+  async blockUser(blockerId: string, blockedId: string) {
+    if (blockerId === blockedId) throw new BadRequestException('Cannot block yourself');
+    await this.prisma.blockedUser.upsert({
+      where: { blockerId_blockedId: { blockerId, blockedId } },
+      create: { blockerId, blockedId },
+      update: {},
+    });
+    return { blockedId, blocked: true };
+  }
+
+  async unblockUser(blockerId: string, blockedId: string) {
+    await this.prisma.blockedUser.deleteMany({ where: { blockerId, blockedId } });
+    return { blockedId, blocked: false };
+  }
+
+  async getArchivedPosts(userId: string) {
+    return this.prisma.post.findMany({
+      where: { authorId: userId, archivedAt: { not: null } },
+      include: {
+        author: { select: { id: true, displayName: true, avatarUrl: true, username: true } },
+        images: { orderBy: { order: 'asc' } },
+        _count: { select: { comments: true } },
+      },
+      orderBy: { archivedAt: 'desc' },
+    });
   }
 
   async sendPhoneOtp(userJwt: string, phone: string): Promise<void> {

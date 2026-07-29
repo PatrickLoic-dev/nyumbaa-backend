@@ -14,6 +14,7 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { UpdatePrivacyDto } from './dto/update-privacy.dto';
 import { SendPhoneOtpDto, VerifyPhoneOtpDto } from './dto/phone-otp.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { User } from '@supabase/supabase-js';
@@ -45,6 +46,24 @@ export class UsersController {
   @ApiOperation({ summary: 'Update current user profile' })
   updateMe(@CurrentUser() user: User, @Body() dto: UpdateProfileDto) {
     return this.usersService.updateMe(user.id, dto);
+  }
+
+  @Patch('me/privacy')
+  @ApiOperation({ summary: 'Update privacy settings' })
+  updatePrivacy(@CurrentUser() user: User, @Body() dto: UpdatePrivacyDto) {
+    return this.usersService.updatePrivacy(user.id, dto);
+  }
+
+  @Get('me/blocked')
+  @ApiOperation({ summary: 'Get blocked users' })
+  getBlocked(@CurrentUser() user: User) {
+    return this.usersService.getBlockedUsers(user.id);
+  }
+
+  @Get('me/archived')
+  @ApiOperation({ summary: 'Get archived posts' })
+  getArchived(@CurrentUser() user: User) {
+    return this.usersService.getArchivedPosts(user.id);
   }
 
   @Post('me/avatar-upload-url')
@@ -114,5 +133,19 @@ export class UsersController {
   @ApiOperation({ summary: 'Unfollow a user' })
   unfollow(@CurrentUser() user: User, @Param('id') id: string) {
     return this.usersService.unfollow(user.id, id);
+  }
+
+  @Post(':id/block')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Block a user' })
+  block(@CurrentUser() user: User, @Param('id') id: string) {
+    return this.usersService.blockUser(user.id, id);
+  }
+
+  @Delete(':id/block')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Unblock a user' })
+  unblock(@CurrentUser() user: User, @Param('id') id: string) {
+    return this.usersService.unblockUser(user.id, id);
   }
 }

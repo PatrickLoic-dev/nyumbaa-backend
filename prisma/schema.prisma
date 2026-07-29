@@ -60,6 +60,18 @@ enum MemberRole {
   member
 }
 
+enum MessagePermission {
+  everyone
+  followers
+  nobody
+}
+
+enum CommentPermission {
+  everyone
+  followers
+  nobody
+}
+
 // ─── Models ─────────────────────────────────────────────────────────────────
 
 model Profile {
@@ -81,6 +93,11 @@ model Profile {
   emailFollowers            Boolean     @default(true) @map("email_followers")
   emailComments             Boolean     @default(true) @map("email_comments")
   emailLikes                Boolean     @default(true) @map("email_likes")
+  isPrivate                 Boolean     @default(false) @map("is_private")
+  showActivity              Boolean     @default(true) @map("show_activity")
+  allowMessagesFrom         MessagePermission @default(everyone) @map("allow_messages_from")
+  allowCommentsFrom         CommentPermission @default(everyone) @map("allow_comments_from")
+  showReadReceipts          Boolean     @default(true) @map("show_read_receipts")
   createdAt                 DateTime    @default(now()) @map("created_at")
   updatedAt     DateTime    @updatedAt @map("updated_at")
 
@@ -97,8 +114,23 @@ model Profile {
   createdCommunities  Community[]
   followers           Follow[]            @relation("UserFollowers")
   following           Follow[]            @relation("UserFollowing")
+  blocking            BlockedUser[]       @relation("Blocker")
+  blockedBy           BlockedUser[]       @relation("Blocked")
 
   @@map("profiles")
+}
+
+model BlockedUser {
+  blockerId String   @map("blocker_id") @db.Uuid
+  blockedId String   @map("blocked_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  blocker Profile @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked Profile @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@id([blockerId, blockedId])
+  @@index([blockerId])
+  @@map("blocked_users")
 }
 
 model Follow {
@@ -151,6 +183,7 @@ model Post {
   likesCount      Int            @default(0) @map("likes_count")
   repostsCount    Int            @default(0) @map("reposts_count")
   commentsEnabled Boolean        @default(true) @map("comments_enabled")
+  archivedAt      DateTime?      @map("archived_at")
   createdAt       DateTime       @default(now()) @map("created_at")
   updatedAt       DateTime       @updatedAt @map("updated_at")
 

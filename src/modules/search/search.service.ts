@@ -1,8 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 
 @Injectable()
 export class SearchService {
+  private readonly logger = new Logger(SearchService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   async searchAccounts(q: string, requesterId: string, limit = 20) {
@@ -19,7 +21,10 @@ export class SearchService {
         select: { id: true, displayName: true, username: true, avatarUrl: true, bio: true },
         take: limit,
       });
-    } catch { return []; }
+    } catch (err) {
+      this.logger.warn(`searchAccounts failed: ${(err as Error).message}`);
+      return [];
+    }
   }
 
   async searchFeeds(q: string, requesterId: string, limit = 15) {
@@ -46,7 +51,10 @@ export class SearchService {
         likes: undefined,
         _count: undefined,
       }));
-    } catch { return []; }
+    } catch (err) {
+      this.logger.warn(`searchFeeds failed: ${(err as Error).message}`);
+      return [];
+    }
   }
 
   async searchCommunities(q: string, userId: string, limit = 20) {
@@ -66,7 +74,8 @@ export class SearchService {
         joinedByMe: c.members.length > 0,
         members: undefined,
       }));
-    } catch {
+    } catch (err) {
+      this.logger.warn(`searchCommunities failed: ${(err as Error).message}`);
       return [];
     }
   }

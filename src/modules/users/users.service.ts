@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
   UnauthorizedException,
   InternalServerErrorException,
@@ -12,6 +13,8 @@ import { UpdatePrivacyDto } from './dto/update-privacy.dto';
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly supabase: SupabaseService,
@@ -196,5 +199,14 @@ export class UsersService {
       where: { id: userId },
       data: { phoneNumber: phone, phoneVerified: true },
     });
+  }
+
+  async updatePublicKey(userId: string, publicKey: string) {
+    await this.prisma.profile.update({ where: { id: userId }, data: { publicKey } });
+    return { updated: true };
+  }
+
+  async deleteMe(userId: string): Promise<void> {
+    await this.supabase.admin.auth.admin.deleteUser(userId);
   }
 }

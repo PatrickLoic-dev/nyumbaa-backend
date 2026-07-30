@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Patch,
+  Put,
   Post,
   Delete,
   Param,
@@ -95,6 +96,20 @@ export class UsersController {
   ) {
     const jwt = auth?.slice(7) ?? '';
     return this.usersService.verifyPhoneOtp(jwt, user.id, dto.phone, dto.token);
+  }
+
+  @Put('me/public-key')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Upload E2E encryption public key' })
+  updatePublicKey(@CurrentUser() user: User, @Body() dto: { publicKey: string }) {
+    return this.usersService.updatePublicKey(user.id, dto.publicKey);
+  }
+
+  @Delete('me')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete current account permanently' })
+  async deleteMe(@CurrentUser() user: User) {
+    await this.usersService.deleteMe(user.id);
   }
 
   @Get(':id')

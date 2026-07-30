@@ -134,6 +134,7 @@ export class PostsService implements OnModuleInit {
         _count: { select: { comments: true } },
         likes: { where: { userId: requesterId }, select: { userId: true } },
         reposts: { where: { userId: requesterId }, select: { userId: true } },
+        bookmarks: { where: { userId: requesterId }, select: { userId: true } },
       },
     });
 
@@ -164,10 +165,12 @@ export class PostsService implements OnModuleInit {
       ...p,
       likedByMe: p.likes.length > 0,
       repostedByMe: p.reposts.length > 0,
+      bookmarkedByMe: p.bookmarks.length > 0,
       commentsCount: p._count.comments,
       repostedBy: repostMap.get(p.id) ?? null,
       likes: undefined,
       reposts: undefined,
+      bookmarks: undefined,
       _count: undefined,
     }));
 
@@ -191,6 +194,7 @@ export class PostsService implements OnModuleInit {
         _count: { select: { comments: true } },
         likes: { where: { userId: requesterId }, select: { userId: true } },
         reposts: { where: { userId: requesterId }, select: { userId: true } },
+        bookmarks: { where: { userId: requesterId }, select: { userId: true } },
       },
     });
 
@@ -198,10 +202,12 @@ export class PostsService implements OnModuleInit {
       ...p,
       likedByMe: p.likes.length > 0,
       repostedByMe: p.reposts.length > 0,
+      bookmarkedByMe: p.bookmarks.length > 0,
       repostedBy: null,
       commentsCount: p._count.comments,
       likes: undefined,
       reposts: undefined,
+      bookmarks: undefined,
       _count: undefined,
     }));
   }
@@ -288,10 +294,21 @@ export class PostsService implements OnModuleInit {
   }
 
   async deletePost(postId: string, requesterId: string) {
-    const post = await this.prisma.post.findUnique({ where: { id: postId }, select: { authorId: true } });
+    const post = await this.prisma.post.findUnique({
+      where: { id: postId },
+      select: {
+        authorId: true,
+        images: { select: { s3Key: true } },
+        videos: { select: { s3Key: true } },
+      },
+    });
     if (!post) throw new NotFoundException('Post not found');
     if (post.authorId !== requesterId) throw new ForbiddenException('Not your post');
     await this.prisma.post.delete({ where: { id: postId } });
+    const s3Keys = [...post.images.map((i) => i.s3Key), ...post.videos.map((v) => v.s3Key)];
+    for (const key of s3Keys) {
+      this.uploadService.deleteObject(key).catch(() => {});
+    }
     return { deleted: true };
   }
 

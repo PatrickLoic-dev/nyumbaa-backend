@@ -9,6 +9,7 @@ import axios from 'axios';
 import { CommentStatus, PostStatus } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { CursorCommentsDto } from './dto/cursor-comments.dto';
 
@@ -22,6 +23,7 @@ export class CommentsService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly realtime: RealtimeGateway,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async create(postId: string, authorId: string, dto: CreateCommentDto) {
@@ -148,12 +150,20 @@ export class CommentsService {
   }
 
   private async notifyPostAuthorAsync(
-    _postAuthorId: string,
-    _commentAuthorId: string,
-    _postId: string,
+    postAuthorId: string,
+    commentAuthorId: string,
+    postId: string,
   ): Promise<void> {
-    // Expo push notification via NotificationsModule — Phase 2
-    this.logger.debug(`Stub: notify post author about new comment on post ${_postId}`);
+    const commenter = await this.prisma.profile.findUnique({
+      where: { id: commentAuthorId },
+      select: { displayName: true },
+    });
+    if (!commenter) return;
+    await this.notifications.sendPushNotification(postAuthorId, {
+      title: 'Nouveau commentaire',
+      body: `${commenter.displayName} a commenté votre publication`,
+      data: { type: 'comment', postId },
+    });
   }
 
   private async moderateAsync(

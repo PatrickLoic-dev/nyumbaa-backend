@@ -104,6 +104,7 @@ model Profile {
   emailLikes                Boolean     @default(true) @map("email_likes")
   isPrivate                 Boolean     @default(false) @map("is_private")
   showActivity              Boolean     @default(true) @map("show_activity")
+  publicKey                 String?     @map("public_key")
   allowMessagesFrom         MessagePermission @default(everyone) @map("allow_messages_from")
   allowCommentsFrom         CommentPermission @default(everyone) @map("allow_comments_from")
   showReadReceipts          Boolean     @default(true) @map("show_read_receipts")
@@ -353,6 +354,8 @@ model Message {
   replyToId         String?     @map("reply_to_id") @db.Uuid
   forwardedFromId   String?     @map("forwarded_from_id") @db.Uuid
   isPinned          Boolean     @default(false) @map("is_pinned")
+  isEncrypted       Boolean     @default(false) @map("is_encrypted")
+  nonce             String?
   deletedAt         DateTime?   @map("deleted_at")
   lang              String      @default("fr")
   createdAt         DateTime    @default(now()) @map("created_at")

@@ -104,6 +104,8 @@ export class MessagesService {
         mediaDuration: dto.mediaDuration,
         replyToId: dto.replyToId,
         lang: dto.lang ?? 'fr',
+        isEncrypted: dto.isEncrypted ?? false,
+        nonce: dto.nonce,
       },
       include: {
         sender: { select: { id: true, displayName: true, avatarUrl: true, username: true } },

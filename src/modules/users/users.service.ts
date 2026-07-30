@@ -155,6 +155,7 @@ export class UsersService {
       create: { blockerId, blockedId },
       update: {},
     });
+    this.logger.log({ action: 'block_user', blockerId, blockedId });
     return { blockedId, blocked: true };
   }
 
@@ -211,6 +212,7 @@ export class UsersService {
   }
 
   async deleteMe(userId: string): Promise<void> {
+    this.logger.warn({ action: 'delete_account', userId });
     await this.supabase.admin.auth.admin.deleteUser(userId);
   }
 }

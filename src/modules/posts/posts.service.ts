@@ -309,6 +309,7 @@ export class PostsService implements OnModuleInit {
     });
     if (!post) throw new NotFoundException('Post not found');
     if (post.authorId !== requesterId) throw new ForbiddenException('Not your post');
+    this.logger.log({ action: 'delete_post', postId, requesterId });
     await this.prisma.post.delete({ where: { id: postId } });
     const s3Keys = [...post.images.map((i) => i.s3Key), ...post.videos.map((v) => v.s3Key)];
     for (const key of s3Keys) {

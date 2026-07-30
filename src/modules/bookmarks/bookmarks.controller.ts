@@ -1,4 +1,4 @@
-import { Controller, Post, Delete, Get, Param, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Delete, Get, Param, UseGuards, HttpCode, HttpStatus, ParseUUIDPipe } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { BookmarksService } from './bookmarks.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -15,14 +15,14 @@ export class BookmarksController {
   @Post('posts/:id/bookmark')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Bookmark a post' })
-  bookmark(@CurrentUser() user: User, @Param('id') postId: string) {
+  bookmark(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) postId: string) {
     return this.bookmarksService.bookmark(user.id, postId);
   }
 
   @Delete('posts/:id/bookmark')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Remove bookmark from a post' })
-  unbookmark(@CurrentUser() user: User, @Param('id') postId: string) {
+  unbookmark(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) postId: string) {
     return this.bookmarksService.unbookmark(user.id, postId);
   }
 

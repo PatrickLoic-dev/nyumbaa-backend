@@ -11,6 +11,7 @@ import {
   HttpCode,
   HttpStatus,
   Headers,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UsersService } from './users.service';
@@ -114,53 +115,53 @@ export class UsersController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get user profile by id' })
-  findOne(@CurrentUser() user: User, @Param('id') id: string) {
+  findOne(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.findById(id, user.id);
   }
 
   @Get(':id/posts')
   @ApiOperation({ summary: 'Get posts by user' })
-  getUserPosts(@CurrentUser() user: User, @Param('id') id: string) {
+  getUserPosts(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.getUserPosts(id, user.id);
   }
 
   @Get(':id/followers')
   @ApiOperation({ summary: 'Get followers of user' })
-  getFollowers(@CurrentUser() user: User, @Param('id') id: string) {
+  getFollowers(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.getFollowers(id, user.id);
   }
 
   @Get(':id/following')
   @ApiOperation({ summary: 'Get users that user is following' })
-  getFollowing(@CurrentUser() user: User, @Param('id') id: string) {
+  getFollowing(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.getFollowing(id, user.id);
   }
 
   @Post(':id/follow')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Follow a user' })
-  follow(@CurrentUser() user: User, @Param('id') id: string) {
+  follow(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.follow(user.id, id);
   }
 
   @Delete(':id/follow')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Unfollow a user' })
-  unfollow(@CurrentUser() user: User, @Param('id') id: string) {
+  unfollow(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.unfollow(user.id, id);
   }
 
   @Post(':id/block')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Block a user' })
-  block(@CurrentUser() user: User, @Param('id') id: string) {
+  block(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.blockUser(user.id, id);
   }
 
   @Delete(':id/block')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Unblock a user' })
-  unblock(@CurrentUser() user: User, @Param('id') id: string) {
+  unblock(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.unblockUser(user.id, id);
   }
 }

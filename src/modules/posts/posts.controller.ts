@@ -9,6 +9,7 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -82,14 +83,14 @@ export class PostsController {
   @ApiOperation({ summary: 'Get a post by id (private posts → 403 for non-authors)' })
   @ApiOkResponse({ description: 'Post returned' })
   @ApiForbiddenResponse({ description: 'Post is private and requester is not the author' })
-  findOne(@Param('id') id: string, @CurrentUser() user: User) {
+  findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User) {
     return this.postsService.findOneForUser(id, user.id);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Delete own post' })
-  deletePost(@Param('id') id: string, @CurrentUser() user: User) {
+  deletePost(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User) {
     return this.postsService.deletePost(id, user.id);
   }
 }

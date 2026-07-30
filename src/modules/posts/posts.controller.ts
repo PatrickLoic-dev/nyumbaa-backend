@@ -1,6 +1,7 @@
 import {
   Controller,
   Post,
+  Delete,
   Get,
   Param,
   Body,
@@ -83,5 +84,12 @@ export class PostsController {
   @ApiForbiddenResponse({ description: 'Post is private and requester is not the author' })
   findOne(@Param('id') id: string, @CurrentUser() user: User) {
     return this.postsService.findOneForUser(id, user.id);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Delete own post' })
+  deletePost(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.postsService.deletePost(id, user.id);
   }
 }

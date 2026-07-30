@@ -287,6 +287,14 @@ export class PostsService implements OnModuleInit {
     };
   }
 
+  async deletePost(postId: string, requesterId: string) {
+    const post = await this.prisma.post.findUnique({ where: { id: postId }, select: { authorId: true } });
+    if (!post) throw new NotFoundException('Post not found');
+    if (post.authorId !== requesterId) throw new ForbiddenException('Not your post');
+    await this.prisma.post.delete({ where: { id: postId } });
+    return { deleted: true };
+  }
+
   // ---------------------------------------------------------------------------
 
   private buildCdnUrl(s3Key: string): string {

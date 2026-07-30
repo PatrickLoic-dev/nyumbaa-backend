@@ -194,6 +194,7 @@ model Post {
   status          PostStatus     @default(published)
   likesCount      Int            @default(0) @map("likes_count")
   repostsCount    Int            @default(0) @map("reposts_count")
+  commentsCount   Int            @default(0) @map("comments_count")
   commentsEnabled Boolean        @default(true) @map("comments_enabled")
   archivedAt      DateTime?      @map("archived_at")
   createdAt       DateTime       @default(now()) @map("created_at")

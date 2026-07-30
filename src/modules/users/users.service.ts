@@ -83,11 +83,12 @@ export class UsersService {
     return { followingId, followed: false, followersCount: count };
   }
 
-  async getFollowers(id: string, requesterId?: string) {
+  async getFollowers(id: string, requesterId?: string, limit = 50, cursor?: string) {
     const follows = await this.prisma.follow.findMany({
-      where: { followingId: id },
+      where: { followingId: id, ...(cursor ? { createdAt: { lt: new Date(cursor) } } : {}) },
       include: { follower: { select: { id: true, displayName: true, avatarUrl: true, username: true, bio: true } } },
       orderBy: { createdAt: 'desc' },
+      take: limit,
     });
     const ids = follows.map((f) => f.followerId);
     const myFollowing = requesterId
@@ -97,11 +98,12 @@ export class UsersService {
     return follows.map((f) => ({ ...f.follower, followedByMe: myFollowingSet.has(f.follower.id) }));
   }
 
-  async getFollowing(id: string, requesterId?: string) {
+  async getFollowing(id: string, requesterId?: string, limit = 50, cursor?: string) {
     const follows = await this.prisma.follow.findMany({
-      where: { followerId: id },
+      where: { followerId: id, ...(cursor ? { createdAt: { lt: new Date(cursor) } } : {}) },
       include: { following: { select: { id: true, displayName: true, avatarUrl: true, username: true, bio: true } } },
       orderBy: { createdAt: 'desc' },
+      take: limit,
     });
     const ids = follows.map((f) => f.followingId);
     const myFollowing = requesterId
@@ -136,11 +138,12 @@ export class UsersService {
     return this.prisma.profile.update({ where: { id: userId }, data: dto });
   }
 
-  async getBlockedUsers(userId: string) {
+  async getBlockedUsers(userId: string, limit = 50) {
     const rows = await this.prisma.blockedUser.findMany({
       where: { blockerId: userId },
       include: { blocked: { select: { id: true, displayName: true, username: true, avatarUrl: true } } },
       orderBy: { createdAt: 'desc' },
+      take: limit,
     });
     return rows.map((r) => r.blocked);
   }
@@ -160,7 +163,7 @@ export class UsersService {
     return { blockedId, blocked: false };
   }
 
-  async getArchivedPosts(userId: string) {
+  async getArchivedPosts(userId: string, limit = 30) {
     return this.prisma.post.findMany({
       where: { authorId: userId, archivedAt: { not: null } },
       include: {
@@ -169,6 +172,7 @@ export class UsersService {
         _count: { select: { comments: true } },
       },
       orderBy: { archivedAt: 'desc' },
+      take: limit,
     });
   }
 

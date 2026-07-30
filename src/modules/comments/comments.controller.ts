@@ -9,6 +9,7 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -19,6 +20,7 @@ import {
   ApiForbiddenResponse,
   ApiNoContentResponse,
 } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { CommentsService } from './comments.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { CursorCommentsDto } from './dto/cursor-comments.dto';
@@ -35,11 +37,12 @@ export class CommentsController {
   constructor(private readonly commentsService: CommentsService) {}
 
   @Post('posts/:postId/comments')
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Add a comment to a post' })
   @ApiCreatedResponse({ description: 'Comment created — moderation async' })
   create(
-    @Param('postId') postId: string,
+    @Param('postId', ParseUUIDPipe) postId: string,
     @CurrentUser() user: User,
     @Body() dto: CreateCommentDto,
   ) {
@@ -49,7 +52,7 @@ export class CommentsController {
   @Get('posts/:postId/comments')
   @ApiOperation({ summary: 'List comments (cursor-based, ASC order, 10/batch)' })
   @ApiOkResponse({ description: '{ data, nextCursor, hasMore }' })
-  findAll(@Param('postId') postId: string, @Query() pagination: CursorCommentsDto) {
+  findAll(@Param('postId', ParseUUIDPipe) postId: string, @Query() pagination: CursorCommentsDto) {
     return this.commentsService.findAll(postId, pagination);
   }
 
@@ -59,7 +62,7 @@ export class CommentsController {
   @ApiOperation({ summary: 'Delete a comment (comment author or post author only)' })
   @ApiForbiddenResponse({ description: '403 if requester is neither comment nor post author' })
   @ApiNoContentResponse({ description: '204 No Content' })
-  remove(@Param('id') id: string) {
+  remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.commentsService.remove(id);
   }
 }

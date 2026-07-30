@@ -104,6 +104,7 @@ model Profile {
   emailLikes                Boolean     @default(true) @map("email_likes")
   isPrivate                 Boolean     @default(false) @map("is_private")
   showActivity              Boolean     @default(true) @map("show_activity")
+  publicKey                 String?     @map("public_key")
   allowMessagesFrom         MessagePermission @default(everyone) @map("allow_messages_from")
   allowCommentsFrom         CommentPermission @default(everyone) @map("allow_comments_from")
   showReadReceipts          Boolean     @default(true) @map("show_read_receipts")
@@ -126,6 +127,7 @@ model Profile {
   following           Follow[]            @relation("UserFollowing")
   blocking            BlockedUser[]       @relation("Blocker")
   blockedBy           BlockedUser[]       @relation("Blocked")
+  bookmarks           PostBookmark[]
 
   @@map("profiles")
 }
@@ -192,18 +194,20 @@ model Post {
   status          PostStatus     @default(published)
   likesCount      Int            @default(0) @map("likes_count")
   repostsCount    Int            @default(0) @map("reposts_count")
+  commentsCount   Int            @default(0) @map("comments_count")
   commentsEnabled Boolean        @default(true) @map("comments_enabled")
   archivedAt      DateTime?      @map("archived_at")
   createdAt       DateTime       @default(now()) @map("created_at")
   updatedAt       DateTime       @updatedAt @map("updated_at")
 
-  author   Profile       @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  mentions PostMention[]
-  images   PostImage[]
-  videos   PostVideo[]
-  likes    Like[]
-  reposts  Repost[]
-  comments Comment[]
+  author    Profile        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  mentions  PostMention[]
+  images    PostImage[]
+  videos    PostVideo[]
+  likes     Like[]
+  reposts   Repost[]
+  comments  Comment[]
+  bookmarks PostBookmark[]
 
   @@index([authorId, createdAt(sort: Desc)])
   @@map("posts")
@@ -294,6 +298,19 @@ model PostMention {
   @@map("post_mentions")
 }
 
+model PostBookmark {
+  postId    String   @map("post_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  post Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("post_bookmarks")
+}
+
 model Conversation {
   id        String           @id @default(uuid()) @db.Uuid
   type      ConversationType @default(private)
@@ -338,6 +355,8 @@ model Message {
   replyToId         String?     @map("reply_to_id") @db.Uuid
   forwardedFromId   String?     @map("forwarded_from_id") @db.Uuid
   isPinned          Boolean     @default(false) @map("is_pinned")
+  isEncrypted       Boolean     @default(false) @map("is_encrypted")
+  nonce             String?
   deletedAt         DateTime?   @map("deleted_at")
   lang              String      @default("fr")
   createdAt         DateTime    @default(now()) @map("created_at")

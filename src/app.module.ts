@@ -21,6 +21,7 @@ import { RepostsModule } from './modules/reposts/reposts.module';
 import { CommunitiesModule } from './modules/communities/communities.module';
 import { SearchModule } from './modules/search/search.module';
 import { CallsModule } from './modules/calls/calls.module';
+import { BookmarksModule } from './modules/bookmarks/bookmarks.module';
 
 @Module({
   imports: [
@@ -85,6 +86,7 @@ import { CallsModule } from './modules/calls/calls.module';
     CommunitiesModule,
     SearchModule,
     CallsModule,
+    BookmarksModule,
   ],
 })
 export class AppModule {}

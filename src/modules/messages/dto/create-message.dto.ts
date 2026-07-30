@@ -1,4 +1,4 @@
-import { IsEnum, IsNotEmpty, IsOptional, IsString, IsNumber, Min } from 'class-validator';
+import { IsBoolean, IsEnum, IsNotEmpty, IsOptional, IsString, IsNumber, Min } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { MessageType } from '@prisma/client';
 
@@ -44,4 +44,14 @@ export class CreateMessageDto {
   @IsOptional()
   @IsString()
   lang?: string;
+
+  @ApiPropertyOptional({ description: 'True when content is E2E-encrypted (NaCl box, base64)' })
+  @IsOptional()
+  @IsBoolean()
+  isEncrypted?: boolean;
+
+  @ApiPropertyOptional({ description: 'Base64 nonce used with NaCl box encryption' })
+  @IsOptional()
+  @IsString()
+  nonce?: string;
 }

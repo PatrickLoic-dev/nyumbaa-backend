@@ -46,9 +46,10 @@ async function bootstrap() {
 
   app.useGlobalFilters(new AllExceptionsFilter());
 
+  // Set CORS_ORIGIN=https://your-app-domain in Railway env vars to restrict in production
   app.enableCors({
     origin: process.env.CORS_ORIGIN ?? '*',
-    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS', 'PUT'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   });
 

@@ -9,6 +9,7 @@ import axios from 'axios';
 import { CommentStatus, PostStatus } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { CursorCommentsDto } from './dto/cursor-comments.dto';
 
@@ -22,6 +23,7 @@ export class CommentsService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly realtime: RealtimeGateway,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async create(postId: string, authorId: string, dto: CreateCommentDto) {
@@ -38,17 +40,23 @@ export class CommentsService {
       throw new ForbiddenException({ error: 'COMMENTS_DISABLED' });
     }
 
-    const comment = await this.prisma.comment.create({
-      data: {
-        postId,
-        authorId,
-        content: dto.content,
-        status: CommentStatus.published,
-      },
-      include: {
-        author: { select: { id: true, displayName: true, avatarUrl: true } },
-      },
-    });
+    const [comment] = await this.prisma.$transaction([
+      this.prisma.comment.create({
+        data: {
+          postId,
+          authorId,
+          content: dto.content,
+          status: CommentStatus.published,
+        },
+        include: {
+          author: { select: { id: true, displayName: true, avatarUrl: true } },
+        },
+      }),
+      this.prisma.post.update({
+        where: { id: postId },
+        data: { commentsCount: { increment: 1 } },
+      }),
+    ]);
 
     // Resolve and persist @mentions (best-effort, non-blocking)
     this.persistMentionsAsync(postId, dto.content, dto.mentions ?? []).catch((err) =>
@@ -115,7 +123,11 @@ export class CommentsService {
   }
 
   async remove(commentId: string): Promise<void> {
-    await this.prisma.comment.delete({ where: { id: commentId } });
+    const comment = await this.prisma.comment.findUnique({ where: { id: commentId }, select: { postId: true } });
+    await this.prisma.$transaction([
+      this.prisma.comment.delete({ where: { id: commentId } }),
+      ...(comment ? [this.prisma.post.update({ where: { id: comment.postId }, data: { commentsCount: { decrement: 1 } } })] : []),
+    ]);
   }
 
   // ---------------------------------------------------------------------------
@@ -148,12 +160,20 @@ export class CommentsService {
   }
 
   private async notifyPostAuthorAsync(
-    _postAuthorId: string,
-    _commentAuthorId: string,
-    _postId: string,
+    postAuthorId: string,
+    commentAuthorId: string,
+    postId: string,
   ): Promise<void> {
-    // Expo push notification via NotificationsModule — Phase 2
-    this.logger.debug(`Stub: notify post author about new comment on post ${_postId}`);
+    const commenter = await this.prisma.profile.findUnique({
+      where: { id: commentAuthorId },
+      select: { displayName: true },
+    });
+    if (!commenter) return;
+    await this.notifications.sendPushNotification(postAuthorId, {
+      title: 'Nouveau commentaire',
+      body: `${commenter.displayName} a commenté votre publication`,
+      data: { type: 'comment', postId },
+    });
   }
 
   private async moderateAsync(

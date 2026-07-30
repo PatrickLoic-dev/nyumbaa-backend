@@ -26,6 +26,7 @@ export class PostsService implements OnModuleInit {
   private readonly logger = new Logger(PostsService.name);
   private fanoutQueue: Queue | null = null;
   private topicsCache: { data: { label: string; count: number }[]; expiresAt: number } | null = null;
+  private trendingCache: { data: unknown[]; expiresAt: number } | null = null;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -119,36 +120,38 @@ export class PostsService implements OnModuleInit {
 
   async findFeed(requesterId: string, cursor?: string, limit = 15) {
     const take = limit + 1;
-    const posts = await this.prisma.post.findMany({
-      where: {
-        visibility: 'public',
-        status: 'published',
-        ...(cursor ? { createdAt: { lt: new Date(cursor) } } : {}),
-      },
-      orderBy: { createdAt: 'desc' },
-      take,
-      include: {
-        author: { select: { id: true, displayName: true, avatarUrl: true, username: true } },
-        images: { orderBy: { order: 'asc' } },
-        videos: { orderBy: { order: 'asc' } },
-        _count: { select: { comments: true } },
-        likes: { where: { userId: requesterId }, select: { userId: true } },
-        reposts: { where: { userId: requesterId }, select: { userId: true } },
-      },
-    });
+    const [posts, followingRows] = await Promise.all([
+      this.prisma.post.findMany({
+        where: {
+          visibility: 'public',
+          status: 'published',
+          ...(cursor ? { createdAt: { lt: new Date(cursor) } } : {}),
+        },
+        orderBy: { createdAt: 'desc' },
+        take,
+        include: {
+          author: { select: { id: true, displayName: true, avatarUrl: true, username: true } },
+          images: { orderBy: { order: 'asc' } },
+          videos: { orderBy: { order: 'asc' } },
+          likes: { where: { userId: requesterId }, select: { userId: true } },
+          reposts: { where: { userId: requesterId }, select: { userId: true } },
+          bookmarks: { where: { userId: requesterId }, select: { userId: true } },
+        },
+      }),
+      this.prisma.follow.findMany({
+        where: { followerId: requesterId },
+        select: { followingId: true },
+      }),
+    ]);
 
     const hasMore = posts.length > limit;
     const page = hasMore ? posts.slice(0, limit) : posts;
 
     // Enrich with repostedBy: if any followed user reposted this post (≠ requester)
     const postIds = page.map((p) => p.id);
-    const followingRows = await this.prisma.follow.findMany({
-      where: { followerId: requesterId },
-      select: { followingId: true },
-    });
     const followingIds = followingRows.map((r) => r.followingId);
 
-    let repostMap = new Map<string, { id: string; displayName: string; avatarUrl: string | null }>();
+    const repostMap = new Map<string, { id: string; displayName: string; avatarUrl: string | null }>();
     if (followingIds.length > 0 && postIds.length > 0) {
       const friendReposts = await this.prisma.repost.findMany({
         where: { postId: { in: postIds }, userId: { in: followingIds } },
@@ -164,11 +167,11 @@ export class PostsService implements OnModuleInit {
       ...p,
       likedByMe: p.likes.length > 0,
       repostedByMe: p.reposts.length > 0,
-      commentsCount: p._count.comments,
+      bookmarkedByMe: p.bookmarks.length > 0,
       repostedBy: repostMap.get(p.id) ?? null,
       likes: undefined,
       reposts: undefined,
-      _count: undefined,
+      bookmarks: undefined,
     }));
 
     return {
@@ -179,7 +182,12 @@ export class PostsService implements OnModuleInit {
   }
 
   async findTrending(requesterId: string, limit = 10) {
-    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const now = Date.now();
+    if (this.trendingCache && now < this.trendingCache.expiresAt) {
+      return this.trendingCache.data;
+    }
+
+    const since = new Date(now - 24 * 60 * 60 * 1000);
     const posts = await this.prisma.post.findMany({
       where: { visibility: 'public', status: 'published', createdAt: { gte: since } },
       orderBy: { likesCount: 'desc' },
@@ -188,22 +196,25 @@ export class PostsService implements OnModuleInit {
         author: { select: { id: true, displayName: true, avatarUrl: true, username: true } },
         images: { orderBy: { order: 'asc' } },
         videos: { orderBy: { order: 'asc' } },
-        _count: { select: { comments: true } },
         likes: { where: { userId: requesterId }, select: { userId: true } },
         reposts: { where: { userId: requesterId }, select: { userId: true } },
+        bookmarks: { where: { userId: requesterId }, select: { userId: true } },
       },
     });
 
-    return posts.map((p) => ({
+    const data = posts.map((p) => ({
       ...p,
       likedByMe: p.likes.length > 0,
       repostedByMe: p.reposts.length > 0,
+      bookmarkedByMe: p.bookmarks.length > 0,
       repostedBy: null,
-      commentsCount: p._count.comments,
       likes: undefined,
       reposts: undefined,
-      _count: undefined,
+      bookmarks: undefined,
     }));
+
+    this.trendingCache = { data, expiresAt: now + 60_000 };
+    return data;
   }
 
   async findTrendingTopics() {
@@ -285,6 +296,26 @@ export class PostsService implements OnModuleInit {
       reposts: undefined,
       _count: undefined,
     };
+  }
+
+  async deletePost(postId: string, requesterId: string) {
+    const post = await this.prisma.post.findUnique({
+      where: { id: postId },
+      select: {
+        authorId: true,
+        images: { select: { s3Key: true } },
+        videos: { select: { s3Key: true } },
+      },
+    });
+    if (!post) throw new NotFoundException('Post not found');
+    if (post.authorId !== requesterId) throw new ForbiddenException('Not your post');
+    this.logger.log({ action: 'delete_post', postId, requesterId });
+    await this.prisma.post.delete({ where: { id: postId } });
+    const s3Keys = [...post.images.map((i) => i.s3Key), ...post.videos.map((v) => v.s3Key)];
+    for (const key of s3Keys) {
+      this.uploadService.deleteObject(key).catch(() => {});
+    }
+    return { deleted: true };
   }
 
   // ---------------------------------------------------------------------------

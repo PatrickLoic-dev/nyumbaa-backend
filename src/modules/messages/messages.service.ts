@@ -104,6 +104,8 @@ export class MessagesService {
         mediaDuration: dto.mediaDuration,
         replyToId: dto.replyToId,
         lang: dto.lang ?? 'fr',
+        isEncrypted: dto.isEncrypted ?? false,
+        nonce: dto.nonce,
       },
       include: {
         sender: { select: { id: true, displayName: true, avatarUrl: true, username: true } },
@@ -136,14 +138,6 @@ export class MessagesService {
       createdAt: message.createdAt,
     };
 
-    this.realtime.emitMessage(conversationId, payload);
-
-    if (type === MessageType.text && content.trim()) {
-      this.translateForConversation(message.id, conversationId, content, dto.lang ?? 'fr', senderId).catch(
-        (err) => this.logger.error(`Translation failed for message ${message.id}: ${err.message}`),
-      );
-    }
-
     const preview =
       type === MessageType.voice
         ? '🎤 Message vocal'
@@ -154,6 +148,19 @@ export class MessagesService {
         : type === MessageType.document
         ? `📎 ${dto.mediaName ?? 'Document'}`
         : content.slice(0, PREVIEW_LENGTH);
+
+    this.realtime.emitMessage(conversationId, payload);
+    this.realtime.emitMessageNotify(recipientId, {
+      conversationId,
+      senderName: message.sender.displayName,
+      preview,
+    });
+
+    if (type === MessageType.text && content.trim()) {
+      this.translateForConversation(message.id, conversationId, content, dto.lang ?? 'fr', senderId).catch(
+        (err) => this.logger.error(`Translation failed for message ${message.id}: ${err.message}`),
+      );
+    }
 
     this.notifications
       .sendPushNotification(recipientId, {

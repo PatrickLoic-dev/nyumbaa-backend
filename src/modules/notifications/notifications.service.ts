@@ -99,6 +99,11 @@ export class NotificationsService {
   }
 
   async registerToken(userId: string, dto: RegisterTokenDto) {
+    // Remove this token from any other user (device changed owner / re-logged-in)
+    await this.prisma.pushToken.deleteMany({
+      where: { expoToken: dto.expoToken, userId: { not: userId } },
+    });
+
     return this.prisma.pushToken.upsert({
       where: {
         userId_platform: {

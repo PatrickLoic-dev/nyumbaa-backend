@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Patch,
+  Put,
   Post,
   Delete,
   Param,
@@ -10,8 +11,10 @@ import {
   HttpCode,
   HttpStatus,
   Headers,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { UsersService } from './users.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdatePrivacyDto } from './dto/update-privacy.dto';
@@ -97,55 +100,73 @@ export class UsersController {
     return this.usersService.verifyPhoneOtp(jwt, user.id, dto.phone, dto.token);
   }
 
+  @Put('me/public-key')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Upload E2E encryption public key' })
+  updatePublicKey(@CurrentUser() user: User, @Body() dto: { publicKey: string }) {
+    return this.usersService.updatePublicKey(user.id, dto.publicKey);
+  }
+
+  @Delete('me')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete current account permanently' })
+  async deleteMe(@CurrentUser() user: User) {
+    await this.usersService.deleteMe(user.id);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get user profile by id' })
-  findOne(@CurrentUser() user: User, @Param('id') id: string) {
+  findOne(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.findById(id, user.id);
   }
 
   @Get(':id/posts')
   @ApiOperation({ summary: 'Get posts by user' })
-  getUserPosts(@CurrentUser() user: User, @Param('id') id: string) {
+  getUserPosts(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.getUserPosts(id, user.id);
   }
 
   @Get(':id/followers')
   @ApiOperation({ summary: 'Get followers of user' })
-  getFollowers(@CurrentUser() user: User, @Param('id') id: string) {
+  getFollowers(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.getFollowers(id, user.id);
   }
 
   @Get(':id/following')
   @ApiOperation({ summary: 'Get users that user is following' })
-  getFollowing(@CurrentUser() user: User, @Param('id') id: string) {
+  getFollowing(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.getFollowing(id, user.id);
   }
 
   @Post(':id/follow')
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Follow a user' })
-  follow(@CurrentUser() user: User, @Param('id') id: string) {
+  follow(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.follow(user.id, id);
   }
 
   @Delete(':id/follow')
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Unfollow a user' })
-  unfollow(@CurrentUser() user: User, @Param('id') id: string) {
+  unfollow(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.unfollow(user.id, id);
   }
 
   @Post(':id/block')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Block a user' })
-  block(@CurrentUser() user: User, @Param('id') id: string) {
+  block(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.blockUser(user.id, id);
   }
 
   @Delete(':id/block')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Unblock a user' })
-  unblock(@CurrentUser() user: User, @Param('id') id: string) {
+  unblock(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.unblockUser(user.id, id);
   }
 }

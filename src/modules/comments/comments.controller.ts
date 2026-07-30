@@ -20,6 +20,7 @@ import {
   ApiForbiddenResponse,
   ApiNoContentResponse,
 } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { CommentsService } from './comments.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { CursorCommentsDto } from './dto/cursor-comments.dto';
@@ -36,6 +37,7 @@ export class CommentsController {
   constructor(private readonly commentsService: CommentsService) {}
 
   @Post('posts/:postId/comments')
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Add a comment to a post' })
   @ApiCreatedResponse({ description: 'Comment created — moderation async' })

@@ -14,6 +14,7 @@ import {
   ParseUUIDPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { UsersService } from './users.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdatePrivacyDto } from './dto/update-privacy.dto';
@@ -138,6 +139,7 @@ export class UsersController {
   }
 
   @Post(':id/follow')
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Follow a user' })
   follow(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
@@ -145,6 +147,7 @@ export class UsersController {
   }
 
   @Delete(':id/follow')
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Unfollow a user' })
   unfollow(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
@@ -152,6 +155,7 @@ export class UsersController {
   }
 
   @Post(':id/block')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Block a user' })
   block(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
@@ -159,6 +163,7 @@ export class UsersController {
   }
 
   @Delete(':id/block')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Unblock a user' })
   unblock(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
